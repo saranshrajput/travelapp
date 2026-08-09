@@ -80,6 +80,30 @@ export async function searchPlaces(q: string): Promise<PlaceResult[]> {
   return results;
 }
 
+type NominatimItem = {
+  display_name?: string;
+  address?: {
+    road?: string;
+    suburb?: string;
+    village?: string;
+    town?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+  };
+};
+
+function shortLabel(item: NominatimItem): string {
+  const a = item.address ?? {};
+  const parts: string[] = [];
+  if (a.road) parts.push(a.road);
+  if (a.suburb) parts.push(a.suburb);
+  const locality = a.village ?? a.town ?? a.city;
+  if (locality) parts.push(locality);
+  if (a.state) parts.push(a.state);
+  return parts.filter(Boolean).slice(0, 3).join(", ") || item.display_name || "Unknown place";
+}
+
 export async function reverseGeocode(
   lat: number,
   lng: number,

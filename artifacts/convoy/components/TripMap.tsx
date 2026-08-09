@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, type MapHandle } from '@/components/map';
 import { Feather } from '@expo/vector-icons';
-import type { MemberState } from '@workspace/api-client-react';
+import type { MemberState, Pitstop } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { Avatar } from '@/components/UI';
 
@@ -26,6 +26,7 @@ export default function TripMap({
   members = [],
   onMemberPress,
   focusMemberId,
+  pitstop,
   children,
 }: {
   route: { lat: number; lng: number }[];
@@ -34,6 +35,7 @@ export default function TripMap({
   members?: MemberState[];
   onMemberPress?: (m: MemberState) => void;
   focusMemberId?: number | null;
+  pitstop?: Pitstop | null;
   children?: React.ReactNode;
 }) {
   const c = useColors();
@@ -142,6 +144,26 @@ export default function TripMap({
             </Marker>
           );
         })}
+        {pitstop ? (
+          <Marker
+            coordinate={{ latitude: pitstop.lat, longitude: pitstop.lng }}
+            anchor={{ x: 0.5, y: 1 }}
+            zIndex={5}
+            tracksViewChanges={false}
+          >
+            <View style={styles.pitstopWrap}>
+              <View style={[styles.pitstopPin, { backgroundColor: '#F59E0B' }]}>
+                <Feather name="coffee" size={13} color="#fff" />
+              </View>
+              <View style={[styles.pitstopStem, { backgroundColor: '#F59E0B' }]} />
+              {pitstop.label ? (
+                <View style={[styles.pitstopLabel, { backgroundColor: '#F59E0B' }]}>
+                  <Text style={styles.pitstopLabelText} numberOfLines={1}>{pitstop.label}</Text>
+                </View>
+              ) : null}
+            </View>
+          </Marker>
+        ) : null}
         {children}
       </MapView>
       {!autoFrame ? (
@@ -178,6 +200,34 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   destStem: { width: 3, height: 8, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 },
+  pitstopWrap: { alignItems: 'center' },
+  pitstopPin: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  pitstopStem: { width: 3, height: 8, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 },
+  pitstopLabel: {
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    marginTop: 2,
+    maxWidth: 120,
+  },
+  pitstopLabelText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 10,
+    color: '#fff',
+  },
   recentre: {
     position: 'absolute',
     bottom: 14,

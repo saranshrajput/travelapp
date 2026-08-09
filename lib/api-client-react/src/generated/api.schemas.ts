@@ -290,6 +290,35 @@ export interface TripEndSummary {
   completedNames: string[];
 }
 
+export type PitstopMemberResponseResponse = typeof PitstopMemberResponseResponse[keyof typeof PitstopMemberResponseResponse];
+
+
+export const PitstopMemberResponseResponse = {
+  on_my_way: 'on_my_way',
+  already_there: 'already_there',
+} as const;
+
+export interface PitstopMemberResponse {
+  memberId: number;
+  name: string;
+  color: string;
+  initial: string;
+  response: PitstopMemberResponseResponse;
+}
+
+export interface Pitstop {
+  id: number;
+  tripId: number;
+  droppedByMemberId: number;
+  droppedByName: string;
+  lat: number;
+  lng: number;
+  /** @nullable */
+  label?: string | null;
+  responses: PitstopMemberResponse[];
+  createdAt: string;
+}
+
 export interface TripState {
   trip: Trip;
   members: MemberState[];
@@ -297,6 +326,25 @@ export interface TripState {
   joinedCount: number;
   serverTime: string;
   summary?: TripEndSummary;
+  pitstop?: Pitstop;
+}
+
+export interface PitstopInput {
+  lat: number;
+  lng: number;
+  label?: string;
+}
+
+export type PitstopRespondInputResponse = typeof PitstopRespondInputResponse[keyof typeof PitstopRespondInputResponse];
+
+
+export const PitstopRespondInputResponse = {
+  on_my_way: 'on_my_way',
+  already_there: 'already_there',
+} as const;
+
+export interface PitstopRespondInput {
+  response: PitstopRespondInputResponse;
 }
 
 export interface MessageInput {

@@ -3,10 +3,12 @@ import {
   Alert,
   FlatList,
   Linking,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -17,6 +19,9 @@ import {
   getGetTripStateQueryKey,
   getListMessagesQueryKey,
   getListTripsQueryKey,
+  useDropPitstop,
+  useCancelPitstop,
+  useRespondToPitstop,
   useEndTrip,
   useGetTrip,
   useGetTripState,
@@ -25,6 +30,7 @@ import {
   usePromoteMember,
   useRemoveMember,
   type MemberState,
+  type Pitstop,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useScreenInsets } from '@/lib/insets';
@@ -48,6 +54,160 @@ function confirm(title: string, message: string, onYes: () => void) {
   ]);
 }
 
+function PitstopBanner({
+  pitstop,
+  isLeader,
+  myMemberId,
+  onRespond,
+  onCancel,
+}: {
+  pitstop: Pitstop;
+  isLeader: boolean;
+  myMemberId: number | undefined;
+  onRespond: (r: 'on_my_way' | 'already_there') => void;
+  onCancel: () => void;
+}) {
+  const c = useColors();
+  const myResponse = pitstop.responses.find((r) => r.memberId === myMemberId);
+  const onMyWayCount = pitstop.responses.filter((r) => r.response === 'on_my_way').length;
+  const alreadyThereCount = pitstop.responses.filter((r) => r.response === 'already_there').length;
+
+  return (
+    <View
+      style={[
+        styles.pitstopBanner,
+        { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' },
+      ]}
+    >
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <Feather name="coffee" size={14} color="#92400E" />
+          <Text style={{ fontFamily: 'Inter_700Bold', fontSize: 13.5, color: '#92400E' }}>
+            Pitstop{pitstop.label ? `: ${pitstop.label}` : ''}
+          </Text>
+        </View>
+        <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: '#78350F' }}>
+          Dropped by {pitstop.droppedByName}
+          {(onMyWayCount + alreadyThereCount) > 0
+            ? ` · ${onMyWayCount} on the way, ${alreadyThereCount} there`
+            : ''}
+        </Text>
+        {!isLeader && (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <Pressable
+              onPress={() => onRespond('on_my_way')}
+              style={[
+                styles.pitstopBtn,
+                {
+                  backgroundColor: myResponse?.response === 'on_my_way' ? '#F59E0B' : '#fff',
+                  borderColor: '#F59E0B',
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  fontFamily: 'Inter_600SemiBold',
+                  fontSize: 12,
+                  color: myResponse?.response === 'on_my_way' ? '#fff' : '#92400E',
+                }}
+              >
+                On my way
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => onRespond('already_there')}
+              style={[
+                styles.pitstopBtn,
+                {
+                  backgroundColor: myResponse?.response === 'already_there' ? '#F59E0B' : '#fff',
+                  borderColor: '#F59E0B',
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  fontFamily: 'Inter_600SemiBold',
+                  fontSize: 12,
+                  color: myResponse?.response === 'already_there' ? '#fff' : '#92400E',
+                }}
+              >
+                Already there
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+      {isLeader && (
+        <Pressable onPress={onCancel} style={{ padding: 4 }} hitSlop={8}>
+          <Feather name="x" size={18} color="#92400E" />
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function DropPitstopModal({
+  visible,
+  onClose,
+  onDrop,
+  loading,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onDrop: (label: string) => void;
+  loading: boolean;
+}) {
+  const c = useColors();
+  const [label, setLabel] = useState('');
+
+  const handleDrop = () => {
+    onDrop(label.trim());
+    setLabel('');
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose} />
+      <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+          <Feather name="coffee" size={18} color="#F59E0B" />
+          <Text
+            style={{
+              fontFamily: 'Inter_700Bold',
+              fontSize: 17,
+              color: c.foreground,
+              marginLeft: 8,
+              flex: 1,
+            }}
+          >
+            Drop Pitstop
+          </Text>
+          <Pressable onPress={onClose} hitSlop={8}>
+            <Feather name="x" size={20} color={c.mutedForeground} />
+          </Pressable>
+        </View>
+        <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13.5, color: c.mutedForeground, marginBottom: 12 }}>
+          Pins a stop at your current location. The group will see it on the map.
+        </Text>
+        <TextInput
+          placeholder="Label (optional, e.g. Dhaba, Petrol pump…)"
+          placeholderTextColor={c.mutedForeground}
+          value={label}
+          onChangeText={setLabel}
+          style={[
+            styles.input,
+            { backgroundColor: c.card, color: c.foreground, borderColor: c.border },
+          ]}
+          maxLength={60}
+          returnKeyType="done"
+          onSubmitEditing={handleDrop}
+        />
+        <Btn title={loading ? 'Dropping…' : 'Drop pitstop here'} onPress={handleDrop} />
+      </View>
+    </Modal>
+  );
+}
+
 export default function Tracking() {
   const c = useColors();
   const insets = useScreenInsets();
@@ -69,6 +229,7 @@ export default function Tracking() {
   const [explainerDismissed, setExplainerDismissed] = useState(false);
   const [selected, setSelected] = useState<MemberState | null>(null);
   const [focusMemberId, setFocusMemberId] = useState<number | null>(null);
+  const [showDropPitstop, setShowDropPitstop] = useState(false);
 
   const messages = useListMessages(tripId, {
     query: {
@@ -83,6 +244,9 @@ export default function Tracking() {
   const leaveTrip = useLeaveTrip();
   const promote = usePromoteMember();
   const removeMember = useRemoveMember();
+  const dropPitstop = useDropPitstop();
+  const cancelPitstop = useCancelPitstop();
+  const respondToPitstop = useRespondToPitstop();
 
   const sortedMembers = useMemo(() => {
     const list = state.data?.members ? [...state.data.members] : [];
@@ -97,10 +261,36 @@ export default function Tracking() {
   }, [sortedMembers]);
 
   const isViewerLeader = me?.role === 'leader';
+  const pitstop = state.data?.pitstop ?? null;
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: getGetTripStateQueryKey(tripId) });
     qc.invalidateQueries({ queryKey: getListTripsQueryKey() });
+  };
+
+  const handleDropPitstop = (label: string) => {
+    // Use leader's current location or trip start as fallback
+    const lat = me?.lat ?? trip?.startLat ?? 0;
+    const lng = me?.lng ?? trip?.startLng ?? 0;
+    dropPitstop.mutate(
+      { tripId, data: { lat, lng, ...(label ? { label } : {}) } },
+      {
+        onSuccess: () => {
+          setShowDropPitstop(false);
+          refresh();
+        },
+      },
+    );
+  };
+
+  const handleCancelPitstop = () => {
+    confirm('Cancel pitstop?', 'The pitstop pin will be removed for everyone.', () => {
+      cancelPitstop.mutate({ tripId }, { onSuccess: refresh });
+    });
+  };
+
+  const handleRespondToPitstop = (response: 'on_my_way' | 'already_there') => {
+    respondToPitstop.mutate({ tripId, data: { response } }, { onSuccess: refresh });
   };
 
   const menu = () => {
@@ -108,6 +298,10 @@ export default function Tracking() {
       { label: 'Trip details & join code', run: () => router.push(`/trip/${tripId}`) },
     ];
     if (isViewerLeader && isActive) {
+      opts.push({
+        label: pitstop ? 'Cancel pitstop' : 'Drop pitstop',
+        run: () => (pitstop ? handleCancelPitstop() : setShowDropPitstop(true)),
+      });
       opts.push({
         label: 'End trip for everyone',
         destructive: true,
@@ -227,6 +421,7 @@ export default function Tracking() {
           dest={{ lat: trip.destLat, lng: trip.destLng }}
           members={sortedMembers}
           focusMemberId={focusMemberId}
+          pitstop={pitstop}
           onMemberPress={(m) => setSelected(m)}
         />
         {isEnded && summary ? (
@@ -261,6 +456,18 @@ export default function Tracking() {
             </Card>
           </View>
         ) : null}
+        {/* Drop Pitstop FAB (leader only, active trip, no active pitstop) */}
+        {isViewerLeader && isActive && !pitstop ? (
+          <Pressable
+            onPress={() => setShowDropPitstop(true)}
+            style={[styles.pitstopFab, { backgroundColor: '#F59E0B', borderRadius: c.radius }]}
+          >
+            <Feather name="coffee" size={15} color="#fff" />
+            <Text style={{ color: '#fff', fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
+              Pitstop
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Banners */}
@@ -293,6 +500,15 @@ export default function Tracking() {
             text="You're the only one here. Share the join code so others can appear on the map."
             actionTitle="Invite"
             onAction={() => router.push(`/trip/${tripId}`)}
+          />
+        ) : null}
+        {pitstop && isActive ? (
+          <PitstopBanner
+            pitstop={pitstop}
+            isLeader={!!isViewerLeader}
+            myMemberId={me?.memberId}
+            onRespond={handleRespondToPitstop}
+            onCancel={handleCancelPitstop}
           />
         ) : null}
       </View>
@@ -351,6 +567,14 @@ export default function Tracking() {
           )
         }
       />
+
+      {/* Drop Pitstop Modal */}
+      <DropPitstopModal
+        visible={showDropPitstop}
+        onClose={() => setShowDropPitstop(false)}
+        onDrop={handleDropPitstop}
+        loading={dropPitstop.isPending}
+      />
     </View>
   );
 }
@@ -372,5 +596,58 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
     top: 12,
+  },
+  pitstopFab: {
+    position: 'absolute',
+    bottom: 14,
+    left: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  pitstopBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+    gap: 8,
+  },
+  pitstopBtn: {
+    borderWidth: 1.5,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalSheet: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 36,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 15,
+    fontFamily: 'Inter_400Regular',
+    marginBottom: 16,
   },
 });

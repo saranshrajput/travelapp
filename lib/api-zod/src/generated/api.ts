@@ -575,6 +575,23 @@ export const GetTripStateResponse = zod.object({
   "totalDistanceM": zod.number(),
   "durationS": zod.number(),
   "completedNames": zod.array(zod.string())
+}).optional(),
+  "pitstop": zod.object({
+  "id": zod.number(),
+  "tripId": zod.number(),
+  "droppedByMemberId": zod.number(),
+  "droppedByName": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number(),
+  "label": zod.string().nullish(),
+  "responses": zod.array(zod.object({
+  "memberId": zod.number(),
+  "name": zod.string(),
+  "color": zod.string(),
+  "initial": zod.string(),
+  "response": zod.enum(['on_my_way', 'already_there'])
+})),
+  "createdAt": zod.string()
 }).optional()
 })
 
@@ -628,6 +645,92 @@ export const SendMessageResponse = zod.object({
   "recipientName": zod.string().nullish(),
   "body": zod.string(),
   "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Get the active pitstop for a trip (404 if none)
+ */
+export const GetActivePitstopParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const GetActivePitstopResponse = zod.object({
+  "id": zod.number(),
+  "tripId": zod.number(),
+  "droppedByMemberId": zod.number(),
+  "droppedByName": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number(),
+  "label": zod.string().nullish(),
+  "responses": zod.array(zod.object({
+  "memberId": zod.number(),
+  "name": zod.string(),
+  "color": zod.string(),
+  "initial": zod.string(),
+  "response": zod.enum(['on_my_way', 'already_there'])
+})),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Drop a pitstop pin (leader only, replaces any existing active pitstop)
+ */
+export const DropPitstopParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const DropPitstopBody = zod.object({
+  "lat": zod.number(),
+  "lng": zod.number(),
+  "label": zod.string().optional()
+})
+
+export const DropPitstopResponse = zod.object({
+  "id": zod.number(),
+  "tripId": zod.number(),
+  "droppedByMemberId": zod.number(),
+  "droppedByName": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number(),
+  "label": zod.string().nullish(),
+  "responses": zod.array(zod.object({
+  "memberId": zod.number(),
+  "name": zod.string(),
+  "color": zod.string(),
+  "initial": zod.string(),
+  "response": zod.enum(['on_my_way', 'already_there'])
+})),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Cancel the active pitstop (leader only)
+ */
+export const CancelPitstopParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const CancelPitstopResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Respond to the active pitstop (on_my_way or already_there)
+ */
+export const RespondToPitstopParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const RespondToPitstopBody = zod.object({
+  "response": zod.enum(['on_my_way', 'already_there'])
+})
+
+export const RespondToPitstopResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 

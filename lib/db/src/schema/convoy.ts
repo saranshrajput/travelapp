@@ -7,6 +7,7 @@ import {
   doublePrecision,
   jsonb,
   boolean,
+  unique,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -103,6 +104,44 @@ export const messagesTable = pgTable("messages", {
     .notNull()
     .defaultNow(),
 });
+
+export const pitstopsTable = pgTable("pitstops", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id")
+    .notNull()
+    .references(() => tripsTable.id),
+  droppedByMemberId: integer("dropped_by_member_id")
+    .notNull()
+    .references(() => tripMembersTable.id),
+  lat: doublePrecision("lat").notNull(),
+  lng: doublePrecision("lng").notNull(),
+  label: text("label"),
+  status: text("status").notNull().default("active"), // active | cancelled
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const pitstopResponsesTable = pgTable(
+  "pitstop_responses",
+  {
+    id: serial("id").primaryKey(),
+    pitstopId: integer("pitstop_id")
+      .notNull()
+      .references(() => pitstopsTable.id),
+    memberId: integer("member_id")
+      .notNull()
+      .references(() => tripMembersTable.id),
+    response: text("response").notNull(), // on_my_way | already_there
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [unique("pitstop_responses_pitstop_id_member_id_unique").on(t.pitstopId, t.memberId)],
+);
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({
   id: true,

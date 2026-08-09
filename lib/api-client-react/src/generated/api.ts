@@ -31,6 +31,9 @@ import type {
   Message,
   MessageInput,
   OkResponse,
+  Pitstop,
+  PitstopInput,
+  PitstopRespondInput,
   Place,
   ReverseGeocodeParams,
   RouteOption,
@@ -1543,6 +1546,298 @@ export const useSendMessage = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSendMessageMutationOptions(options));
+    }
+
+export const getGetActivePitstopUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/pitstop`
+}
+
+/**
+ * @summary Get the active pitstop for a trip (404 if none)
+ */
+export const getActivePitstop = async (tripId: number, options?: Parameters<typeof customFetch>[1]): Promise<Pitstop> => {
+
+  return customFetch<Pitstop>(getGetActivePitstopUrl(tripId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetActivePitstopQueryKey = (tripId: number,) => {
+    return [
+    `/api/trips/${tripId}/pitstop`
+    ] as const;
+    }
+
+
+export const getGetActivePitstopQueryOptions = <TData = Awaited<ReturnType<typeof getActivePitstop>>, TError = ErrorType<ErrorResponse>>(tripId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getActivePitstop>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetActivePitstopQueryKey(tripId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getActivePitstop>>> = ({ signal }) => getActivePitstop(tripId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: tripId !== null && tripId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getActivePitstop>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetActivePitstopQueryResult = NonNullable<Awaited<ReturnType<typeof getActivePitstop>>>
+export type GetActivePitstopQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get the active pitstop for a trip (404 if none)
+ */
+
+export function useGetActivePitstop<TData = Awaited<ReturnType<typeof getActivePitstop>>, TError = ErrorType<ErrorResponse>>(
+ tripId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getActivePitstop>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetActivePitstopQueryOptions(tripId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDropPitstopUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/pitstop`
+}
+
+/**
+ * @summary Drop a pitstop pin (leader only, replaces any existing active pitstop)
+ */
+export const dropPitstop = async (tripId: number,
+    pitstopInput: PitstopInput, options?: Parameters<typeof customFetch>[1]): Promise<Pitstop> => {
+
+  return customFetch<Pitstop>(getDropPitstopUrl(tripId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pitstopInput)
+  }
+);}
+
+
+
+
+
+export const getDropPitstopMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dropPitstop>>, TError,{tripId: number;data: BodyType<PitstopInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dropPitstop>>, TError,{tripId: number;data: BodyType<PitstopInput>}, TContext> => {
+
+const mutationKey = ['dropPitstop'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dropPitstop>>, {tripId: number;data: BodyType<PitstopInput>}> = (props) => {
+          const {tripId,data} = props ?? {};
+
+          return  dropPitstop(tripId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DropPitstopMutationResult = NonNullable<Awaited<ReturnType<typeof dropPitstop>>>
+    export type DropPitstopMutationBody = BodyType<PitstopInput>
+    export type DropPitstopMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Drop a pitstop pin (leader only, replaces any existing active pitstop)
+ */
+export const useDropPitstop = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dropPitstop>>, TError,{tripId: number;data: BodyType<PitstopInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof dropPitstop>>,
+        TError,
+        {tripId: number;data: BodyType<PitstopInput>},
+        TContext
+      > => {
+      return useMutation(getDropPitstopMutationOptions(options));
+    }
+
+export const getCancelPitstopUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/pitstop`
+}
+
+/**
+ * @summary Cancel the active pitstop (leader only)
+ */
+export const cancelPitstop = async (tripId: number, options?: Parameters<typeof customFetch>[1]): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getCancelPitstopUrl(tripId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelPitstopMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelPitstop>>, TError,{tripId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelPitstop>>, TError,{tripId: number}, TContext> => {
+
+const mutationKey = ['cancelPitstop'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelPitstop>>, {tripId: number}> = (props) => {
+          const {tripId} = props ?? {};
+
+          return  cancelPitstop(tripId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelPitstopMutationResult = NonNullable<Awaited<ReturnType<typeof cancelPitstop>>>
+
+    export type CancelPitstopMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Cancel the active pitstop (leader only)
+ */
+export const useCancelPitstop = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelPitstop>>, TError,{tripId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelPitstop>>,
+        TError,
+        {tripId: number},
+        TContext
+      > => {
+      return useMutation(getCancelPitstopMutationOptions(options));
+    }
+
+export const getRespondToPitstopUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/pitstop/respond`
+}
+
+/**
+ * @summary Respond to the active pitstop (on_my_way or already_there)
+ */
+export const respondToPitstop = async (tripId: number,
+    pitstopRespondInput: PitstopRespondInput, options?: Parameters<typeof customFetch>[1]): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getRespondToPitstopUrl(tripId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pitstopRespondInput)
+  }
+);}
+
+
+
+
+
+export const getRespondToPitstopMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondToPitstop>>, TError,{tripId: number;data: BodyType<PitstopRespondInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof respondToPitstop>>, TError,{tripId: number;data: BodyType<PitstopRespondInput>}, TContext> => {
+
+const mutationKey = ['respondToPitstop'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof respondToPitstop>>, {tripId: number;data: BodyType<PitstopRespondInput>}> = (props) => {
+          const {tripId,data} = props ?? {};
+
+          return  respondToPitstop(tripId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RespondToPitstopMutationResult = NonNullable<Awaited<ReturnType<typeof respondToPitstop>>>
+    export type RespondToPitstopMutationBody = BodyType<PitstopRespondInput>
+    export type RespondToPitstopMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Respond to the active pitstop (on_my_way or already_there)
+ */
+export const useRespondToPitstop = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondToPitstop>>, TError,{tripId: number;data: BodyType<PitstopRespondInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof respondToPitstop>>,
+        TError,
+        {tripId: number;data: BodyType<PitstopRespondInput>},
+        TContext
+      > => {
+      return useMutation(getRespondToPitstopMutationOptions(options));
     }
 
 export const getSearchPlacesUrl = (params: SearchPlacesParams,) => {

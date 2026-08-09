@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, tripsTable, tripMembersTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+import { db, tripsTable, tripMembersTable, pitstopsTable, pitstopResponsesTable } from "@workspace/db";
 import {
   PostLocationParams,
   PostLocationBody,
@@ -172,6 +172,46 @@ router.get("/trips/:tripId/state", async (req, res): Promise<void> => {
   ).length;
   const joinedCount = roster.filter((m) => m.joinStatus === "joined").length;
 
+  // Load active pitstop (if any)
+  const [activePitstop] = await db
+    .select()
+    .from(pitstopsTable)
+    .where(
+      and(eq(pitstopsTable.tripId, trip.id), eq(pitstopsTable.status, "active")),
+    )
+    .limit(1);
+
+  let pitstopPayload: Record<string, unknown> | undefined;
+  if (activePitstop) {
+    const byId = new Map(roster.map((m) => [m.id, m]));
+    const dropper = byId.get(activePitstop.droppedByMemberId);
+    const responses = await db
+      .select()
+      .from(pitstopResponsesTable)
+      .where(eq(pitstopResponsesTable.pitstopId, activePitstop.id));
+
+    pitstopPayload = {
+      id: activePitstop.id,
+      tripId: activePitstop.tripId,
+      droppedByMemberId: activePitstop.droppedByMemberId,
+      droppedByName: dropper?.name ?? "Leader",
+      lat: activePitstop.lat,
+      lng: activePitstop.lng,
+      label: activePitstop.label ?? null,
+      responses: responses.map((r) => {
+        const member = byId.get(r.memberId);
+        return {
+          memberId: r.memberId,
+          name: member?.name ?? "Member",
+          color: member?.color ?? "#9AA0A6",
+          initial: member?.initial ?? "?",
+          response: r.response,
+        };
+      }),
+      createdAt: activePitstop.createdAt.toISOString(),
+    };
+  }
+
   res.json(
     GetTripStateResponse.parse({
       trip: tripToApi(trip),
@@ -180,6 +220,7 @@ router.get("/trips/:tripId/state", async (req, res): Promise<void> => {
       joinedCount,
       serverTime: now.toISOString(),
       ...(trip.endSummary ? { summary: trip.endSummary } : {}),
+      ...(pitstopPayload ? { pitstop: pitstopPayload } : {}),
     }),
   );
 });

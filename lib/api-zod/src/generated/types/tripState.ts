@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MemberState } from './memberState';
+import type { Pitstop } from './pitstop';
 import type { Trip } from './trip';
 import type { TripEndSummary } from './tripEndSummary';
 
@@ -16,4 +17,5 @@ export interface TripState {
   joinedCount: number;
   serverTime: string;
   summary?: TripEndSummary;
+  pitstop?: Pitstop;
 }

@@ -365,6 +365,90 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Message"
+  /trips/{tripId}/pitstop:
+    get:
+      operationId: getActivePitstop
+      tags: [tracking]
+      summary: Get the active pitstop for a trip (404 if none)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Active pitstop
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pitstop"
+        "404":
+          description: No active pitstop
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: dropPitstop
+      tags: [tracking]
+      summary: Drop a pitstop pin (leader only, replaces any existing active pitstop)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PitstopInput"
+      responses:
+        "201":
+          description: Pitstop created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pitstop"
+    delete:
+      operationId: cancelPitstop
+      tags: [tracking]
+      summary: Cancel the active pitstop (leader only)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          description: No active pitstop
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /trips/{tripId}/pitstop/respond:
+    post:
+      operationId: respondToPitstop
+      tags: [tracking]
+      summary: Respond to the active pitstop (on_my_way or already_there)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PitstopRespondInput"
+      responses:
+        "200":
+          description: Response recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          description: No active pitstop
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /geo/search:
     get:
       operationId: searchPlaces
@@ -843,6 +927,8 @@ components:
           type: string
         summary:
           $ref: "#/components/schemas/TripEndSummary"
+        pitstop:
+          $ref: "#/components/schemas/Pitstop"
     TripEndSummary:
       type: object
       required: [totalDistanceM, durationS, completedNames]
@@ -855,6 +941,62 @@ components:
           type: array
           items:
             type: string
+    PitstopInput:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        label:
+          type: string
+    PitstopMemberResponse:
+      type: object
+      required: [memberId, name, color, initial, response]
+      properties:
+        memberId:
+          type: number
+        name:
+          type: string
+        color:
+          type: string
+        initial:
+          type: string
+        response:
+          type: string
+          enum: [on_my_way, already_there]
+    Pitstop:
+      type: object
+      required: [id, tripId, droppedByMemberId, droppedByName, lat, lng, responses, createdAt]
+      properties:
+        id:
+          type: number
+        tripId:
+          type: number
+        droppedByMemberId:
+          type: number
+        droppedByName:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        label:
+          type: ["string", "null"]
+        responses:
+          type: array
+          items:
+            $ref: "#/components/schemas/PitstopMemberResponse"
+        createdAt:
+          type: string
+    PitstopRespondInput:
+      type: object
+      required: [response]
+      properties:
+        response:
+          type: string
+          enum: [on_my_way, already_there]
     MessageInput:
       type: object
       required: [body]
