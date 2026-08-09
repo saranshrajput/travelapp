@@ -22,66 +22,56 @@ async function fetchJson(url: string, timeoutMs: number): Promise<unknown> {
 
 export type PlaceResult = { label: string; lat: number; lng: number };
 
-type NominatimItem = {
-  display_name?: string;
-  name?: string;
-  lat?: string;
-  lon?: string;
-  address?: Record<string, string>;
+// ---------- Photon geocoder (komoot.io) — OSM data, no API key, generous limits ----------
+
+type PhotonFeature = {
+  geometry?: { coordinates?: [number, number] };
+  properties?: {
+    name?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    street?: string;
+    housenumber?: string;
+    district?: string;
+    county?: string;
+  };
 };
 
-function shortLabel(item: NominatimItem): string {
-  const a = item.address ?? {};
-  const locality =
-    a["suburb"] ??
-    a["neighbourhood"] ??
-    a["village"] ??
-    a["town"] ??
-    a["city_district"] ??
-    a["city"] ??
-    a["county"] ??
-    "";
-  const region = a["state"] ?? a["city"] ?? "";
-  const head = item.name && item.name.length > 0 ? item.name : a["road"] ?? "";
-  const parts = [head, locality, region].filter(
-    (p, i, arr) => p && p.length > 0 && arr.indexOf(p) === i,
-  );
-  if (parts.length > 0) return parts.slice(0, 3).join(", ");
-  return (item.display_name ?? "Unknown place").split(",").slice(0, 3).join(",");
+function photonLabel(f: PhotonFeature): string {
+  const p = f.properties ?? {};
+  const parts: string[] = [];
+  if (p.name) parts.push(p.name);
+  else if (p.street) parts.push(p.housenumber ? `${p.housenumber} ${p.street}` : p.street);
+  if (p.district && p.district !== p.name) parts.push(p.district);
+  if (p.city && p.city !== p.name) parts.push(p.city);
+  if (p.state) parts.push(p.state);
+  if (p.country) parts.push(p.country);
+  return parts.filter(Boolean).slice(0, 4).join(", ") || "Unknown place";
 }
 
-// In-memory cache for place search results (TTL: 5 minutes)
+// In-memory result cache (TTL 5 min) so repeated/slow typers don't hit upstream at all
 const searchCache = new Map<string, { results: PlaceResult[]; expiresAt: number }>();
 const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
-
-// Enforce Nominatim's 1-request-per-second policy
-let lastNominatimCall = 0;
-async function nominatimThrottle() {
-  const now = Date.now();
-  const wait = 1100 - (now - lastNominatimCall);
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  lastNominatimCall = Date.now();
-}
 
 export async function searchPlaces(q: string): Promise<PlaceResult[]> {
   const key = q.toLowerCase().trim();
   const cached = searchCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.results;
 
-  await nominatimThrottle();
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&q=${encodeURIComponent(q)}`;
-  const data = (await fetchJson(url, 8000)) as NominatimItem[];
-  const results = data
-    .filter((d) => d.lat && d.lon)
-    .map((d) => ({
-      label: (d.display_name ?? shortLabel(d)).split(",").slice(0, 4).join(","),
-      lat: Number(d.lat),
-      lng: Number(d.lon),
+  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=en`;
+  const data = (await fetchJson(url, 8000)) as { features?: PhotonFeature[] };
+  const features = data.features ?? [];
+  const results: PlaceResult[] = features
+    .filter((f) => f.geometry?.coordinates?.length === 2)
+    .map((f) => ({
+      label: photonLabel(f),
+      lng: f.geometry!.coordinates![0],
+      lat: f.geometry!.coordinates![1],
     }));
 
   searchCache.set(key, { results, expiresAt: Date.now() + SEARCH_CACHE_TTL_MS });
-  // Evict old entries if cache grows large
-  if (searchCache.size > 200) {
+  if (searchCache.size > 300) {
     const now = Date.now();
     for (const [k, v] of searchCache.entries()) {
       if (v.expiresAt < now) searchCache.delete(k);
