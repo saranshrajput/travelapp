@@ -1,0 +1,28 @@
+kind = "slides"
+previewPath = "/convoy-deck/"
+title = "Convoy Pitch Deck"
+description = "A 5-slide product pitch deck for Convoy, the real-time group trip tracker mobile app."
+version = "1.0.0"
+id = "artifacts/convoy-deck"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/convoy-deck/" ]
+localPort = 18533
+
+[services.development]
+run = "pnpm --filter @workspace/convoy-deck run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/convoy-deck", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/convoy-deck/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18533"
+BASE_PATH = "/convoy-deck/"

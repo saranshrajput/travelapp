@@ -1,0 +1,42 @@
+[
+  {
+    "id": "f7a3b21c-4d89-4e5f-9abc-1234567890ab",
+    "position": 1,
+    "filepath": "src/pages/slides/ConvoyTitle.tsx",
+    "title": "Convoy",
+    "description": "Cover slide with tagline and live map hero image",
+    "speakerNotes": ""
+  },
+  {
+    "id": "2b8c9d0e-5f6a-4b7c-8def-234567890abc",
+    "position": 2,
+    "filepath": "src/pages/slides/ConvoyProblem.tsx",
+    "title": "Group trips fall apart in the group chat",
+    "description": "The problem — chaotic group chat coordination on road trips",
+    "speakerNotes": ""
+  },
+  {
+    "id": "3c9d0e1f-6a7b-4c8d-9ef0-34567890abcd",
+    "position": 3,
+    "filepath": "src/pages/slides/ConvoySolution.tsx",
+    "title": "Everyone on one live map — instantly",
+    "description": "How Convoy works — join by code, live map, color-coded status",
+    "speakerNotes": ""
+  },
+  {
+    "id": "4d0e1f2a-7b8c-4d9e-0f1a-4567890abcde",
+    "position": 4,
+    "filepath": "src/pages/slides/ConvoyFeatures.tsx",
+    "title": "Built for real road trips",
+    "description": "Key features: gap tracking, messaging, pitstops, one-tap call",
+    "speakerNotes": ""
+  },
+  {
+    "id": "5e1f2a3b-8c9d-4e0f-1a2b-567890abcdef",
+    "position": 5,
+    "filepath": "src/pages/slides/ConvoyCta.tsx",
+    "title": "Start your next convoy",
+    "description": "CTA — 30 seconds to start, free, no sign-up for riders",
+    "speakerNotes": ""
+  }
+]
