@@ -5,7 +5,7 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, tripsTable, tripMembersTable } from "@workspace/db";
-import { authRequired } from "../lib/auth";
+import { authRequired, currentUser } from "../lib/auth";
 import { haversineM } from "../lib/geo";
 import { logger } from "../lib/logger";
 
@@ -207,7 +207,8 @@ async function tickSim(tripId: number) {
 // Endpoint: POST /api/demo/create
 // ──────────────────────────────────────────
 router.post("/demo/create", authRequired, async (req, res): Promise<void> => {
-  const userId = (req as unknown as { userId: number }).userId;
+  const user = currentUser(res);
+  const userId = user.id;
 
   // Stop any existing demo sim for this user (best-effort: find most recent demo trip)
   const existingDemoTrips = await db
