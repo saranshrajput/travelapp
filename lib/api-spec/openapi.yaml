@@ -3,13 +3,25 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Convoy API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Lightweight name+phone session auth
+  - name: trips
+    description: Trip management
+  - name: members
+    description: Trip roster management
+  - name: tracking
+    description: Location sharing and live group state
+  - name: messages
+    description: In-trip messaging
+  - name: geo
+    description: Routing and geocoding helpers
 paths:
   /healthz:
     get:
@@ -24,7 +36,427 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/session:
+    post:
+      operationId: createSession
+      tags: [auth]
+      summary: Sign in with name and phone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionInput"
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+  /me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /trips:
+    get:
+      operationId: listTrips
+      tags: [trips]
+      summary: List trips for the current user
+      responses:
+        "200":
+          description: Trips list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TripSummary"
+    post:
+      operationId: createTrip
+      tags: [trips]
+      summary: Create a trip (creator becomes leader)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TripInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripDetail"
+  /trips/{tripId}:
+    get:
+      operationId: getTrip
+      tags: [trips]
+      summary: Get trip details with roster
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Trip detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripDetail"
+    patch:
+      operationId: updateTrip
+      tags: [trips]
+      summary: Update trip (leaders only, Draft only for destination/route)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TripUpdate"
+      responses:
+        "200":
+          description: Updated trip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripDetail"
+  /trips/{tripId}/start:
+    post:
+      operationId: startTrip
+      tags: [trips]
+      summary: Start the trip (leader only)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Trip started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripDetail"
+  /trips/{tripId}/end:
+    post:
+      operationId: endTrip
+      tags: [trips]
+      summary: End the trip (leader only)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Trip ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripDetail"
+  /trips/{tripId}/leave:
+    post:
+      operationId: leaveTrip
+      tags: [members]
+      summary: Leave the trip (blocked for the only leader)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Left trip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "409":
+          description: Only leader cannot leave
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /join/{code}:
+    get:
+      operationId: getJoinPreview
+      tags: [members]
+      summary: Preview a trip by join code (no membership required)
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Trip preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinPreview"
+        "404":
+          description: Unknown code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /join:
+    post:
+      operationId: joinTrip
+      tags: [members]
+      summary: Join a trip with a join code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinInput"
+      responses:
+        "200":
+          description: Joined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripDetail"
+  /trips/{tripId}/members:
+    post:
+      operationId: inviteMember
+      tags: [members]
+      summary: Invite a member by phone (leader only)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberInvite"
+      responses:
+        "201":
+          description: Invited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+  /trips/{tripId}/members/{memberId}:
+    delete:
+      operationId: removeMember
+      tags: [members]
+      summary: Remove a member (leader only)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - $ref: "#/components/parameters/MemberId"
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "409":
+          description: Cannot remove the only leader
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /trips/{tripId}/members/{memberId}/promote:
+    post:
+      operationId: promoteMember
+      tags: [members]
+      summary: Promote a member to leader (leader only)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - $ref: "#/components/parameters/MemberId"
+      responses:
+        "200":
+          description: Promoted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+  /trips/{tripId}/location:
+    post:
+      operationId: postLocation
+      tags: [tracking]
+      summary: Post the current member's location fix
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocationFix"
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+  /trips/{tripId}/sharing:
+    post:
+      operationId: setSharing
+      tags: [tracking]
+      summary: Declare whether the current member is sharing location
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SharingState"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+  /trips/{tripId}/state:
+    get:
+      operationId: getTripState
+      tags: [tracking]
+      summary: Live group state with per-member status, progress, and gaps relative to the caller
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Live state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripState"
+  /trips/{tripId}/messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List messages visible to the caller (group + own DMs)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message to the group or one member
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+  /geo/search:
+    get:
+      operationId: searchPlaces
+      tags: [geo]
+      summary: Address search (forward geocoding)
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Candidates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Place"
+  /geo/reverse:
+    get:
+      operationId: reverseGeocode
+      tags: [geo]
+      summary: Reverse geocode a coordinate into an area label
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Area label
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Place"
+  /geo/routes:
+    get:
+      operationId: getRouteOptions
+      tags: [geo]
+      summary: Get 2-3 route alternatives between two points
+      parameters:
+        - name: fromLat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: fromLng
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: toLat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: toLng
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Route options
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RouteOption"
 components:
+  parameters:
+    TripId:
+      name: tripId
+      in: path
+      required: true
+      schema:
+        type: number
+    MemberId:
+      name: memberId
+      in: path
+      required: true
+      schema:
+        type: number
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +465,428 @@ components:
           type: string
       required:
         - status
-
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+    SessionInput:
+      type: object
+      required: [name, phone]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 5
+    Session:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+    User:
+      type: object
+      required: [id, name, phone]
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        phone:
+          type: string
+    Coordinate:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+    Place:
+      type: object
+      required: [label, lat, lng]
+      properties:
+        label:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+    RouteOption:
+      type: object
+      required: [geometry, distanceM, durationS]
+      properties:
+        geometry:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coordinate"
+        distanceM:
+          type: number
+        durationS:
+          type: number
+    TripInput:
+      type: object
+      required:
+        [
+          name,
+          startLat,
+          startLng,
+          startLabel,
+          destLat,
+          destLng,
+          destLabel,
+          scheduledAt,
+          routeGeometry,
+          routeDistanceM,
+          routeDurationS,
+        ]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        startLat:
+          type: number
+        startLng:
+          type: number
+        startLabel:
+          type: string
+        destLat:
+          type: number
+        destLng:
+          type: number
+        destLabel:
+          type: string
+        scheduledAt:
+          type: string
+        routeGeometry:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coordinate"
+        routeDistanceM:
+          type: number
+        routeDurationS:
+          type: number
+    TripUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        destLat:
+          type: number
+        destLng:
+          type: number
+        destLabel:
+          type: string
+        scheduledAt:
+          type: string
+        routeGeometry:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coordinate"
+        routeDistanceM:
+          type: number
+        routeDurationS:
+          type: number
+    Trip:
+      type: object
+      required:
+        [
+          id,
+          name,
+          status,
+          startLat,
+          startLng,
+          startLabel,
+          destLat,
+          destLng,
+          destLabel,
+          scheduledAt,
+          routeDistanceM,
+          routeDurationS,
+          joinCode,
+        ]
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, ended]
+        startLat:
+          type: number
+        startLng:
+          type: number
+        startLabel:
+          type: string
+        destLat:
+          type: number
+        destLng:
+          type: number
+        destLabel:
+          type: string
+        scheduledAt:
+          type: string
+        routeDistanceM:
+          type: number
+        routeDurationS:
+          type: number
+        joinCode:
+          type: string
+        startedAt:
+          type: ["string", "null"]
+        endedAt:
+          type: ["string", "null"]
+    TripSummary:
+      type: object
+      required: [trip, memberCount, sharingCount, myRole]
+      properties:
+        trip:
+          $ref: "#/components/schemas/Trip"
+        memberCount:
+          type: number
+        sharingCount:
+          type: number
+        myRole:
+          type: string
+          enum: [leader, member]
+    Member:
+      type: object
+      required: [id, name, phone, role, color, initial, joinStatus]
+      properties:
+        id:
+          type: number
+        userId:
+          type: ["number", "null"]
+        name:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [leader, member]
+        color:
+          type: string
+        initial:
+          type: string
+        vehicleType:
+          type: ["string", "null"]
+        joinStatus:
+          type: string
+          enum: [joined, invited]
+        isSelf:
+          type: boolean
+    TripDetail:
+      type: object
+      required: [trip, members, routeGeometry, myMemberId, myRole]
+      properties:
+        trip:
+          $ref: "#/components/schemas/Trip"
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/Member"
+        routeGeometry:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coordinate"
+        myMemberId:
+          type: number
+        myRole:
+          type: string
+          enum: [leader, member]
+    JoinPreview:
+      type: object
+      required: [tripName, destLabel, scheduledAt, status, memberCount]
+      properties:
+        tripName:
+          type: string
+        destLabel:
+          type: string
+        scheduledAt:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, ended]
+        memberCount:
+          type: number
+    JoinInput:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 1
+    MemberInvite:
+      type: object
+      required: [phone]
+      properties:
+        phone:
+          type: string
+          minLength: 5
+        name:
+          type: string
+    LocationFix:
+      type: object
+      required: [lat, lng, recordedAt]
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        recordedAt:
+          type: string
+        speedMps:
+          type: ["number", "null"]
+        headingDeg:
+          type: ["number", "null"]
+        accuracyM:
+          type: ["number", "null"]
+    SharingState:
+      type: object
+      required: [sharing]
+      properties:
+        sharing:
+          type: boolean
+    MemberState:
+      type: object
+      required:
+        [
+          memberId,
+          name,
+          role,
+          color,
+          initial,
+          status,
+          isSelf,
+          offRoute,
+          sortIndex,
+        ]
+      properties:
+        memberId:
+          type: number
+        name:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [leader, member]
+        color:
+          type: string
+        initial:
+          type: string
+        vehicleType:
+          type: ["string", "null"]
+        isSelf:
+          type: boolean
+        status:
+          type: string
+          enum: [moving, stopped, not_updating, not_sharing, not_joined]
+        statusSinceS:
+          type: ["number", "null"]
+          description: Seconds the member has been in this status (stopped/not updating duration)
+        lat:
+          type: ["number", "null"]
+        lng:
+          type: ["number", "null"]
+        lastFixAt:
+          type: ["string", "null"]
+        lastSeenLabel:
+          type: ["string", "null"]
+        progressM:
+          type: ["number", "null"]
+          description: Distance travelled along the route in meters
+        remainingM:
+          type: ["number", "null"]
+          description: Route distance remaining to destination in meters
+        offRoute:
+          type: boolean
+        gapM:
+          type: ["number", "null"]
+          description: Signed route gap to the caller in meters (positive = ahead of you). Straight-line if off-route.
+        gapS:
+          type: ["number", "null"]
+          description: Estimated time gap in seconds (null when unknown)
+        speedMps:
+          type: ["number", "null"]
+        sortIndex:
+          type: number
+          description: Front-to-back order along the route (0 = furthest ahead)
+    TripState:
+      type: object
+      required: [trip, members, sharingCount, joinedCount, serverTime]
+      properties:
+        trip:
+          $ref: "#/components/schemas/Trip"
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberState"
+        sharingCount:
+          type: number
+        joinedCount:
+          type: number
+        serverTime:
+          type: string
+        summary:
+          $ref: "#/components/schemas/TripEndSummary"
+    TripEndSummary:
+      type: object
+      required: [totalDistanceM, durationS, completedNames]
+      properties:
+        totalDistanceM:
+          type: number
+        durationS:
+          type: number
+        completedNames:
+          type: array
+          items:
+            type: string
+    MessageInput:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        recipientMemberId:
+          type: ["number", "null"]
+          description: Null or absent = whole group
+    Message:
+      type: object
+      required: [id, tripId, senderMemberId, senderName, senderColor, senderInitial, body, createdAt]
+      properties:
+        id:
+          type: number
+        tripId:
+          type: number
+        senderMemberId:
+          type: number
+        senderName:
+          type: string
+        senderColor:
+          type: string
+        senderInitial:
+          type: string
+        recipientMemberId:
+          type: ["number", "null"]
+        recipientName:
+          type: ["string", "null"]
+        body:
+          type: string
+        createdAt:
+          type: string

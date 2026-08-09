@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "Convoy"
+description = "A shared live trip map mobile app for groups travelling to the same destination in separate vehicles. A leader creates a trip with a chosen route, shares a join link; members join with just name and phone, share live location, and everyone sees the group on one map with route-based distance/time gaps plus in-app group and direct messaging."
+version = "1.0.0"
+id = "artifacts/convoy"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 22361
+
+[services.development]
+run = "pnpm --filter @workspace/convoy run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/convoy", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/convoy", "run", "serve" ]
+
+[services.env]
+PORT = "22361"
+BASE_PATH = "/"
