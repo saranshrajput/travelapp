@@ -1,0 +1,342 @@
+# Convoy MVP — Product Requirements
+
+**For:** handoff to a no-code / AI app builder
+**Scope:** minimum viable version only
+**Version:** MVP v1.0
+**Date:** 9 Aug 2026
+
+---
+
+## 1. What we are building
+
+A shared live map for a group of people travelling to the same destination in separate vehicles.
+
+One person creates a trip, sets the destination and route, and adds the group. Everyone joins and turns on location sharing. From then on, every member sees where everyone else is on one map, and can tap any member to see how far behind or ahead that person is.
+
+That is the whole MVP. Everything else is out of scope.
+
+---
+
+## 2. The problem we are solving
+
+Groups travelling together on separate bikes or cars scatter within the first hour. Traffic signals, fuel stops, and different speeds spread the group across kilometres of road.
+
+Today the group solves this with phone calls, WhatsApp voice notes, and location pins that go stale in two minutes — all exchanged while riding or driving. Three things go wrong:
+
+1. **Nobody knows the shape of the group.** Who is in front, who is at the back, how spread out are we.
+2. **Nobody knows the gap.** Should I slow down? Should they speed up? Is the last person 5 minutes back or 45?
+3. **Regrouping takes a chain of calls.** Getting eight people to the same dhaba takes five phone calls and three voice notes.
+
+The MVP solves exactly these three. It does not solve pitstop coordination, group voice, or emergencies — those come later.
+
+---
+
+## 3. One decision to make before building
+
+Continuous location sharing behaves very differently depending on what we build:
+
+| Approach | What the user does | What works | What doesn't |
+|---|---|---|---|
+| **Web app / PWA** ✅ recommended for MVP | Opens a link, keeps the tab open, phone mounted with screen on | Fast to build in a no-code tool. Works on any phone. No app store approval | Location stops updating if the user closes the tab or the screen locks |
+| Native mobile app | Installs an app, grants "always" location permission | Keeps sharing with the screen off and phone in pocket | Cannot be built in a no-code tool. Needs Play Store and App Store approval, which takes weeks |
+
+**Recommendation: build the MVP as a web app.** Riders already mount their phones with the screen on for navigation. Accept the limitation, be honest about it in the interface, and validate whether groups find the product useful at all before investing in a native app.
+
+**This means the interface must clearly show when a member has stopped updating** — because it will happen often. That requirement is baked into the specs below and is not optional.
+
+---
+
+## 4. Roles
+
+| Role | Who | Can do |
+|---|---|---|
+| **Leader** | The person who creates the trip | Everything a member can, plus: set destination, choose route, add and remove members, promote another member to leader, start the trip, end the trip |
+| **Member** | Everyone else. This is the default for anyone who joins | Join a trip, share their location, view the map, tap any member to see their gap, leave the trip |
+
+Rules:
+- The person who creates a trip becomes leader automatically.
+- A leader can promote any member to leader. There can be more than one leader.
+- A leader cannot demote or remove themselves if they are the only leader.
+- Members cannot change the destination, the route, or the roster.
+
+---
+
+## 5. Core objects
+
+### Trip
+| Field | Notes |
+|---|---|
+| Trip name | Free text, e.g. "Bangalore to Coorg" |
+| Start point | Address or map pin. Defaults to leader's current location |
+| Destination | Address or map pin. Set by leader |
+| Route | Chosen by leader from suggested options |
+| Date and start time | Planned |
+| Status | Draft / Active / Ended |
+| Join link | Auto-generated, shareable |
+
+### Member
+| Field | Notes |
+|---|---|
+| Name | Entered on join |
+| Phone number | Used for identity and for the "call" action |
+| Role | Leader or Member |
+| Colour / initial | Auto-assigned, used as their map marker |
+| Vehicle type | Bike or Car. Optional, display only |
+| Current status | Moving / Stopped / Not updating / Not joined |
+| Last known position | Latitude, longitude, and the time it was recorded |
+
+---
+
+## 6. Screens
+
+### 6.1 Sign in and join
+
+**Entry points:** a shared join link, or opening the app directly.
+
+- New user opens a join link → asked for name and phone number only. No password, no email, no signup wall.
+- The whole join must be completable in under a minute.
+- After joining, the user lands on the trip lobby.
+- A returning user opening the app sees their trips list.
+
+**Do not** ask for location permission on this screen. It comes later, at the right moment.
+
+---
+
+### 6.2 My trips
+
+A simple list.
+
+- Active trips at the top, with a live indicator and the number of members currently sharing.
+- Upcoming trips below.
+- Past trips below that, collapsed.
+- A prominent "Create trip" button.
+- Empty state: a short line explaining what a trip is, and the create button.
+
+---
+
+### 6.3 Create trip — leader only
+
+A short form, in this order:
+
+1. Trip name
+2. Start point — defaults to current location, editable
+3. Destination — address search or drop a pin on a map
+4. Date and start time
+5. Route — after start and destination are set, show 2 to 3 route options on a map with distance and estimated duration for each. Leader picks one.
+
+Saving creates the trip in **Draft** status and takes the leader to the trip lobby.
+
+The route is the reference line for the entire trip. It is what makes "how far behind" a meaningful number rather than a straight-line guess.
+
+---
+
+### 6.4 Trip lobby — before the trip starts
+
+The shared plan, visible to everyone who has joined.
+
+**Shows:**
+- Trip name, date, start time
+- Start point and destination, with the chosen route drawn on a map
+- Total distance and estimated duration
+- Member list with each person's name, role, and join status (Joined / Invited, not yet joined)
+
+**Leader controls:**
+- Add members — share the join link, or add by phone number
+- Remove a member
+- Promote a member to leader
+- Edit destination or route (only while the trip is in Draft)
+- **Start trip** — the primary action
+
+**Member controls:**
+- Leave trip
+
+**When the leader taps Start trip:**
+- Status changes to Active
+- All joined members are notified
+- Everyone is taken to the tracking page
+- The location permission prompt appears at this moment, not before
+
+---
+
+### 6.5 Location permission
+
+This is a small screen, but it decides whether the product works at all. Do not skip it and do not let the browser's own dialog be the first thing the user sees.
+
+**Before the browser prompt, show a single screen saying, in plain words:**
+- What is shared: your live location
+- With whom: only the members of this trip
+- For how long: only while this trip is running
+- That they can leave the trip at any time and sharing stops immediately
+
+Then trigger the browser prompt.
+
+**If the user allows:** proceed to the tracking page, showing them as active.
+
+**If the user denies:** do not dead-end them. Show the tracking page anyway — they can still see everyone else. Display a persistent banner: "You're not sharing your location. The group can't see where you are." with a button to try again, and a short line on how to re-enable it in browser settings.
+
+**The rest of the group must see this too.** A member who has denied permission shows in the member list as "Not sharing" — never as an empty pin or an assumed position.
+
+---
+
+### 6.6 Tracking page — the core screen
+
+This is the screen people stare at from a phone mount at 60 km/h. Everything else in the MVP is scaffolding for this.
+
+**Map area (upper two-thirds):**
+- The chosen route drawn as a line from start to destination
+- The destination clearly marked
+- A marker for every member, showing their initial or colour
+- The current user's own marker visually distinct
+- Leaders visually distinct from members
+- The map auto-frames to fit everyone. If the user pans or zooms manually, stop auto-framing and show a "Recentre" button
+
+**Member status must be visible at a glance from the marker itself:**
+
+| Status | Meaning | Appearance |
+|---|---|---|
+| Moving | Location updating, position changing | Solid, normal |
+| Stopped | Location updating, but stationary for 3+ minutes | Solid with a stopped indicator, plus stop duration |
+| Not updating | No location received for 5+ minutes | Faded or outlined, with the last known time |
+| Not sharing | Denied permission or never granted | Greyed, positioned at the last known point if any, otherwise not on the map |
+
+**A member's pin must never silently disappear.** If we stop hearing from someone, the group must be told that, not left to assume everything is fine. This is the single most important rule on this screen.
+
+**Member list (lower third), ordered front to back along the route:**
+
+Each row shows:
+- Colour or initial, name, and a leader tag if applicable
+- Their status
+- Their gap relative to the user: "12 km behind · ~22 min" or "4 km ahead · ~7 min"
+- Distance still to go to the destination
+
+The person furthest back should be immediately identifiable — this is the number the leader actually cares about. Consider a subtle marker on the last row.
+
+**Header:**
+- Trip name
+- Count of members currently sharing, e.g. "6 of 8 sharing"
+- Menu with: leave trip, and for leaders, end trip
+
+---
+
+### 6.7 Member detail — tapping a member
+
+Opens as a panel or sheet over the map. Shows:
+
+- Name, role, vehicle type
+- Current status, with duration if stopped or not updating
+- **Distance from you**, and whether they are ahead or behind
+- **Estimated time gap**
+- Distance remaining to the destination
+- Where they were last seen — nearest landmark or area name, with a timestamp
+- Actions: **Call** (opens the phone dialler) and **Locate on map** (centres the map on them)
+- For leaders only: promote to leader, remove from trip
+
+---
+
+### 6.8 Trip ended
+
+When the leader ends the trip, or it auto-ends after 12 hours of inactivity:
+
+- All location sharing stops immediately for everyone
+- Everyone is shown a simple summary: total distance, duration, and who completed the trip
+- The map becomes read-only
+- No further location is collected
+
+---
+
+## 7. How the gap is calculated
+
+Plain-language rules for whoever builds this.
+
+**Distance:** measure along the chosen route, not straight-line. Project each member's position onto the route line, then compare their progress. A member on the highway 12 km back is 12 km back — not "3 km away" because a parallel service road happens to be nearby.
+
+**If a member is far from the route** (say more than 500 metres), mark them **off-route** and show a straight-line distance with that label. Never present a route-based number for someone who isn't on the route.
+
+**Time:** estimate from distance and the member's recent average speed over the last few minutes. If they are stopped, estimate from the group's average speed instead.
+
+**Be honest about what the estimate is.** Label it as an estimate. Do not present it as a live traffic-aware ETA, because it isn't one. A number that is confidently wrong destroys trust faster than an approximate number that is honestly labelled.
+
+---
+
+## 8. Things that will go wrong, and what should happen
+
+| Situation | Expected behaviour |
+|---|---|
+| Member denies location permission | They can still view the map. Banner tells them they're invisible. Group sees them as "Not sharing" |
+| Member closes the browser tab | Their status becomes "Not updating" after 5 minutes. Last known position stays on the map |
+| Member loses mobile signal in a dead zone | Same as above. When signal returns, their position updates and the status clears |
+| Member joins 40 minutes after the trip started | They see the current live state immediately, not an empty map, and their own gap to the group |
+| Member goes off-route | Marked off-route with straight-line distance. No fabricated route-based gap |
+| Leader leaves the trip | If other leaders exist, nothing changes. If they are the only leader, block the action and ask them to promote someone first |
+| Leader ends the trip while members are still travelling | All members notified, sharing stops for everyone |
+| Only one member has joined | Map works, member list shows one person, with a prompt to share the join link |
+| A member's phone battery dies | Same as "not updating". Nothing special needed in MVP |
+
+---
+
+## 9. Explicitly out of scope for MVP
+
+Listed so nobody builds them by accident:
+
+- Pitstops, planned or ad-hoc
+- Push-to-talk voice or any in-app messaging
+- Emergency / SOS declaration
+- Turn-by-turn navigation — link out to Google Maps instead
+- Background location with the screen off
+- Multi-day trips
+- Trip history, replays, or analytics
+- Push notifications
+- Social features — profiles, friends, ride history
+- Payments or subscriptions
+- Live traffic-aware ETAs
+
+---
+
+## 10. Acceptance checklist
+
+The MVP is done when all of these are true.
+
+**Setup**
+- [ ] A leader can create a trip with name, start, destination, date, and a chosen route
+- [ ] A leader can share a join link
+- [ ] A new person can join from that link with only name and phone, in under a minute
+- [ ] A leader can add, remove, and promote members
+- [ ] A leader can start and end the trip
+- [ ] A member cannot change destination, route, or roster
+
+**Tracking**
+- [ ] Every member sees every other member's live position on one map
+- [ ] The chosen route and the destination are drawn on the map
+- [ ] Members are listed in order along the route, front to back
+- [ ] Moving, stopped, not-updating, and not-sharing states are visually distinct
+- [ ] A member who stops updating keeps their last known pin, with a timestamp
+- [ ] Tapping a member shows their distance and time gap, and a call button
+- [ ] Gaps are measured along the route, and off-route members are labelled as such
+- [ ] The map auto-frames to the group, with a manual recentre option
+
+**Permission and privacy**
+- [ ] The location explainer appears before the browser permission prompt
+- [ ] Permission is requested at trip start, not at signup
+- [ ] Denying permission does not dead-end the user
+- [ ] The group can see who is and isn't sharing
+- [ ] Leaving a trip stops that member's sharing immediately
+- [ ] Ending a trip stops sharing for everyone
+- [ ] A trip auto-ends after 12 hours of inactivity
+
+---
+
+## 11. Design notes for the builder
+
+- **Assume the screen is being read at arm's length, in sunlight, at speed.** High contrast, large text, few labels. Someone should get the shape of the group in one glance without reading anything.
+- **Minimise taps in motion.** The tracking page should need zero interaction to be useful. Tapping is for detail, not for the primary answer.
+- **Show sharing state at all times.** The user should never be uncertain whether they are currently visible to the group.
+- **Colour carries meaning.** Use it for member identity and for status. Do not use it decoratively.
+- **Mobile first, and honestly mobile only.** Nobody uses this on a laptop.
+
+---
+
+## 12. What we learn from this MVP
+
+The MVP exists to answer one question: **do groups voluntarily use this for a second trip?**
+
+If five real groups use it once and never again, no amount of pitstops, voice, or emergency features will save it. If they use it twice, the roadmap after this — pitstops, hands-free broadcasts, SOS, and a native app with background tracking — is worth building.
