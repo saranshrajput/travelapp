@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Q4rW-wndl7RZHSVlbcWLZ"
+uri = "file://.local/outputs/Convoy-Pitch-Deck.pdf"
+type = "pdf"
+title = "Convoy Pitch Deck.pdf"
