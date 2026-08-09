@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import {
@@ -8,7 +8,7 @@ import {
   type TripSummary,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
-import { useSession } from '@/lib/session';
+import { useSession, getSessionToken } from '@/lib/session';
 import { useScreenInsets } from '@/lib/insets';
 import { Btn, Card, EmptyState, SectionLabel } from '@/components/UI';
 import { fmtDate, fmtKm } from '@/lib/format';
@@ -64,14 +64,46 @@ function TripCard({ s }: { s: TripSummary }) {
   );
 }
 
+const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
+  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`
+  : '/api';
+
+async function createDemoTrip(): Promise<number> {
+  const token = getSessionToken();
+  const res = await fetch(`${API_BASE}/demo/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new Error(`Demo creation failed: ${res.status}`);
+  const data = (await res.json()) as { tripId: number };
+  return data.tripId;
+}
+
 export default function Trips() {
   const c = useColors();
   const insets = useScreenInsets();
   const { user, signOut } = useSession();
   const [showPast, setShowPast] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const trips = useListTrips({
     query: { queryKey: getListTripsQueryKey(), refetchInterval: 10000 },
   });
+
+  const handleTryDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const tripId = await createDemoTrip();
+      await trips.refetch();
+      router.push(`/trip/${tripId}/tracking`);
+    } catch {
+      Alert.alert('Demo unavailable', 'Could not start the demo right now. Try again.');
+    } finally {
+      setDemoLoading(false);
+    }
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -138,6 +170,37 @@ export default function Trips() {
             onPress={() => router.push('/join')}
           />
         </View>
+
+        {/* Demo banner */}
+        <Pressable
+          onPress={handleTryDemo}
+          disabled={demoLoading}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            padding: 14,
+            borderRadius: c.radius,
+            borderWidth: 1.5,
+            borderStyle: 'dashed',
+            borderColor: c.lime,
+            backgroundColor: pressed ? '#F0FBF0' : 'transparent',
+            opacity: demoLoading ? 0.6 : 1,
+          })}
+        >
+          <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center' }}>
+            <Feather name="play" size={16} color={c.ink} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: 'Inter_700Bold', fontSize: 14, color: c.foreground }}>
+              {demoLoading ? 'Starting demo…' : 'Try a live demo'}
+            </Text>
+            <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12.5, color: c.mutedForeground, marginTop: 1 }}>
+              4 riders · Bangalore → Mysore · moves in real-time
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={c.mutedForeground} />
+        </Pressable>
 
         {trips.isLoading ? null : list.length === 0 ? (
           <EmptyState
