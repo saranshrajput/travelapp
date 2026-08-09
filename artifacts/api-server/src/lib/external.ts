@@ -50,16 +50,44 @@ function shortLabel(item: NominatimItem): string {
   return (item.display_name ?? "Unknown place").split(",").slice(0, 3).join(",");
 }
 
+// In-memory cache for place search results (TTL: 5 minutes)
+const searchCache = new Map<string, { results: PlaceResult[]; expiresAt: number }>();
+const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
+
+// Enforce Nominatim's 1-request-per-second policy
+let lastNominatimCall = 0;
+async function nominatimThrottle() {
+  const now = Date.now();
+  const wait = 1100 - (now - lastNominatimCall);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastNominatimCall = Date.now();
+}
+
 export async function searchPlaces(q: string): Promise<PlaceResult[]> {
+  const key = q.toLowerCase().trim();
+  const cached = searchCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.results;
+
+  await nominatimThrottle();
   const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&q=${encodeURIComponent(q)}`;
   const data = (await fetchJson(url, 8000)) as NominatimItem[];
-  return data
+  const results = data
     .filter((d) => d.lat && d.lon)
     .map((d) => ({
       label: (d.display_name ?? shortLabel(d)).split(",").slice(0, 4).join(","),
       lat: Number(d.lat),
       lng: Number(d.lon),
     }));
+
+  searchCache.set(key, { results, expiresAt: Date.now() + SEARCH_CACHE_TTL_MS });
+  // Evict old entries if cache grows large
+  if (searchCache.size > 200) {
+    const now = Date.now();
+    for (const [k, v] of searchCache.entries()) {
+      if (v.expiresAt < now) searchCache.delete(k);
+    }
+  }
+  return results;
 }
 
 export async function reverseGeocode(

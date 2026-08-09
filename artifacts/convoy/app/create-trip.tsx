@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -38,6 +38,17 @@ function buildScheduledAt(dayOffset: number, time: string): string {
   return d.toISOString();
 }
 
+function useDebounce(value: string, delay: number) {
+  const [debounced, setDebounced] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setDebounced(value), delay);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [value, delay]);
+  return debounced;
+}
+
 function PlaceSearch({
   label,
   placeholder,
@@ -52,13 +63,14 @@ function PlaceSearch({
   const c = useColors();
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
+  const debouncedText = useDebounce(text.trim(), 500);
   const search = useSearchPlaces(
-    { q: text.trim() },
+    { q: debouncedText },
     {
       query: {
-        queryKey: getSearchPlacesQueryKey({ q: text.trim() }),
-        enabled: open && text.trim().length >= 3,
-        staleTime: 30000,
+        queryKey: getSearchPlacesQueryKey({ q: debouncedText }),
+        enabled: open && debouncedText.length >= 3,
+        staleTime: 60000,
       },
     },
   );
