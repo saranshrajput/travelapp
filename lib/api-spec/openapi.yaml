@@ -465,6 +465,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /trips/{tripId}/safe-zones:
+    get:
+      operationId: listSafeZones
+      tags: [tracking]
+      summary: List active safe zones for a trip
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Safe zones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SafeZone"
+    post:
+      operationId: createSafeZone
+      tags: [tracking]
+      summary: Create a safe zone (leader only)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SafeZoneInput"
+      responses:
+        "201":
+          description: Safe zone created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SafeZone"
+  /trips/{tripId}/safe-zones/{zoneId}:
+    delete:
+      operationId: removeSafeZone
+      tags: [tracking]
+      summary: Remove a safe zone (leader only)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - name: zoneId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          description: Safe zone not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /geo/search:
     get:
       operationId: searchPlaces
@@ -1016,6 +1076,38 @@ components:
         response:
           type: string
           enum: [on_my_way, already_there]
+    SafeZoneInput:
+      type: object
+      required: [lat, lng, radiusM]
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        radiusM:
+          type: number
+        label:
+          type: string
+    SafeZone:
+      type: object
+      required: [id, tripId, createdByMemberId, lat, lng, radiusM, createdAt]
+      properties:
+        id:
+          type: number
+        tripId:
+          type: number
+        createdByMemberId:
+          type: number
+        lat:
+          type: number
+        lng:
+          type: number
+        radiusM:
+          type: number
+        label:
+          type: ["string", "null"]
+        createdAt:
+          type: string
     MessageInput:
       type: object
       required: [body]

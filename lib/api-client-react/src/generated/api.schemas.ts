@@ -356,6 +356,25 @@ export interface PitstopRespondInput {
   response: PitstopRespondInputResponse;
 }
 
+export interface SafeZoneInput {
+  lat: number;
+  lng: number;
+  radiusM: number;
+  label?: string;
+}
+
+export interface SafeZone {
+  id: number;
+  tripId: number;
+  createdByMemberId: number;
+  lat: number;
+  lng: number;
+  radiusM: number;
+  /** @nullable */
+  label?: string | null;
+  createdAt: string;
+}
+
 export interface MessageInput {
   /**
      * @minLength 1

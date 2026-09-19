@@ -766,6 +766,65 @@ export const RespondToPitstopResponse = zod.object({
 
 
 /**
+ * @summary List active safe zones for a trip
+ */
+export const ListSafeZonesParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const ListSafeZonesResponseItem = zod.object({
+  "id": zod.number(),
+  "tripId": zod.number(),
+  "createdByMemberId": zod.number(),
+  "lat": zod.number(),
+  "lng": zod.number(),
+  "radiusM": zod.number(),
+  "label": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListSafeZonesResponse = zod.array(ListSafeZonesResponseItem)
+
+
+/**
+ * @summary Create a safe zone (leader only)
+ */
+export const CreateSafeZoneParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const CreateSafeZoneBody = zod.object({
+  "lat": zod.number(),
+  "lng": zod.number(),
+  "radiusM": zod.number(),
+  "label": zod.string().optional()
+})
+
+export const CreateSafeZoneResponse = zod.object({
+  "id": zod.number(),
+  "tripId": zod.number(),
+  "createdByMemberId": zod.number(),
+  "lat": zod.number(),
+  "lng": zod.number(),
+  "radiusM": zod.number(),
+  "label": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Remove a safe zone (leader only)
+ */
+export const RemoveSafeZoneParams = zod.object({
+  "tripId": zod.coerce.number(),
+  "zoneId": zod.coerce.number()
+})
+
+export const RemoveSafeZoneResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
  * @summary Address search (forward geocoding)
  */
 export const SearchPlacesQueryParams = zod.object({

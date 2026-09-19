@@ -310,7 +310,14 @@ router.post("/demo/create", authRequired, async (req, res): Promise<void> => {
 
   // Start simulation loop
   const progressM = BOT_DEFS.map((d) => d.startFraction * TOTAL_ROUTE_M);
-  const timer = setInterval(() => void tickSim(trip.id), SIM_TICK_MS);
+  const timer = setInterval(() => {
+    // A rejected tick (e.g. a transient DB timeout) must not become an
+    // unhandled rejection — that crashes the whole process, taking down
+    // every trip's tracking, not just the demo simulation.
+    tickSim(trip.id).catch((err) => {
+      logger.warn({ err, tripId: trip.id }, "demo sim tick failed");
+    });
+  }, SIM_TICK_MS);
   activeSims.set(trip.id, { botMemberIds: botIds, progressM, timer });
 
   // Auto-stop after 2 hours to avoid orphaned intervals

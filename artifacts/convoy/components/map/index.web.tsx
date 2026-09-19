@@ -200,6 +200,56 @@ export function Marker({
   );
 }
 
+export function Circle({
+  center,
+  radius,
+  strokeColor,
+  fillColor,
+  strokeWidth,
+}: {
+  center: LatLng;
+  radius: number;
+  strokeColor?: string;
+  fillColor?: string;
+  strokeWidth?: number;
+}) {
+  const map = useContext(MapCtx);
+  const circleRef = useRef<L.Circle | null>(null);
+
+  useEffect(() => {
+    if (!map) return undefined;
+    const c = L.circle([center.latitude, center.longitude], {
+      radius,
+      color: strokeColor ?? '#4285F4',
+      weight: strokeWidth ?? 2,
+      fillColor: fillColor ?? strokeColor ?? '#4285F4',
+      fillOpacity: 0.12,
+      interactive: false,
+    }).addTo(map);
+    circleRef.current = c;
+    return () => {
+      c.remove();
+      circleRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map]);
+
+  useEffect(() => {
+    circleRef.current?.setLatLng([center.latitude, center.longitude]);
+    circleRef.current?.setRadius(radius);
+  }, [center.latitude, center.longitude, radius]);
+
+  useEffect(() => {
+    circleRef.current?.setStyle({
+      color: strokeColor ?? '#4285F4',
+      weight: strokeWidth ?? 2,
+      fillColor: fillColor ?? strokeColor ?? '#4285F4',
+    });
+  }, [strokeColor, fillColor, strokeWidth]);
+
+  return null;
+}
+
 export function Polyline({
   coordinates,
   strokeColor,

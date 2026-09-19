@@ -143,6 +143,31 @@ export const pitstopResponsesTable = pgTable(
   (t) => [unique("pitstop_responses_pitstop_id_member_id_unique").on(t.pitstopId, t.memberId)],
 );
 
+export const safeZonesTable = pgTable("safe_zones", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id")
+    .notNull()
+    .references(() => tripsTable.id),
+  createdByMemberId: integer("created_by_member_id")
+    .notNull()
+    .references(() => tripMembersTable.id),
+  lat: doublePrecision("lat").notNull(),
+  lng: doublePrecision("lng").notNull(),
+  radiusM: doublePrecision("radius_m").notNull(),
+  label: text("label"),
+  status: text("status").notNull().default("active"), // active | removed
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const insertSafeZoneSchema = createInsertSchema(safeZonesTable).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertSafeZone = z.infer<typeof insertSafeZoneSchema>;
+export type SafeZoneRow = typeof safeZonesTable.$inferSelect;
+
 export const insertUserSchema = createInsertSchema(usersTable).omit({
   id: true,
   createdAt: true,

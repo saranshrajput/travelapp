@@ -4,7 +4,7 @@
  */
 import MapView from 'react-native-maps';
 
-export { Marker, Polyline } from 'react-native-maps';
+export { Marker, Polyline, Circle } from 'react-native-maps';
 
 export type MapHandle = {
   fitToCoordinates: (

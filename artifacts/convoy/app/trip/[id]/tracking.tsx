@@ -18,7 +18,9 @@ import {
   getGetTripQueryKey,
   getGetTripStateQueryKey,
   getListMessagesQueryKey,
+  getListSafeZonesQueryKey,
   getListTripsQueryKey,
+  useCreateSafeZone,
   useDropPitstop,
   useCancelPitstop,
   useRespondToPitstop,
@@ -27,10 +29,13 @@ import {
   useGetTripState,
   useLeaveTrip,
   useListMessages,
+  useListSafeZones,
   usePromoteMember,
   useRemoveMember,
+  useRemoveSafeZone,
   type MemberState,
   type Pitstop,
+  type SafeZone,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useScreenInsets } from '@/lib/insets';
@@ -41,6 +46,16 @@ import PermissionExplainer from '@/components/PermissionExplainer';
 import { MemberRow, MemberSheet } from '@/components/members';
 import { Banner, Btn, Card } from '@/components/UI';
 import { fmtDur, fmtKm } from '@/lib/format';
+
+function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
 
 function confirm(title: string, message: string, onYes: () => void) {
   if (Platform.OS === 'web') {
@@ -208,6 +223,99 @@ function DropPitstopModal({
   );
 }
 
+const ZONE_RADIUS_PRESETS = [100, 300, 1000];
+
+function AddSafeZoneModal({
+  visible,
+  onClose,
+  onCreate,
+  loading,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onCreate: (label: string, radiusM: number) => void;
+  loading: boolean;
+}) {
+  const c = useColors();
+  const [label, setLabel] = useState('');
+  const [radiusM, setRadiusM] = useState(ZONE_RADIUS_PRESETS[1]!);
+
+  const handleCreate = () => {
+    onCreate(label.trim(), radiusM);
+    setLabel('');
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose} />
+      <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+          <Feather name="shield" size={18} color="#00897B" />
+          <Text
+            style={{
+              fontFamily: 'Inter_700Bold',
+              fontSize: 17,
+              color: c.foreground,
+              marginLeft: 8,
+              flex: 1,
+            }}
+          >
+            Add Safe Zone
+          </Text>
+          <Pressable onPress={onClose} hitSlop={8}>
+            <Feather name="x" size={20} color={c.mutedForeground} />
+          </Pressable>
+        </View>
+        <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13.5, color: c.mutedForeground, marginBottom: 12 }}>
+          Centered on your current location. The group gets notified when a member enters or leaves —
+          this only works while their app is open (foreground tracking, no background permission).
+        </Text>
+        <TextInput
+          placeholder="Label (optional, e.g. Toll gate, Rest area…)"
+          placeholderTextColor={c.mutedForeground}
+          value={label}
+          onChangeText={setLabel}
+          style={[
+            styles.input,
+            { backgroundColor: c.card, color: c.foreground, borderColor: c.border },
+          ]}
+          maxLength={60}
+          returnKeyType="done"
+        />
+        <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 13, color: c.mutedForeground, marginBottom: 8 }}>
+          Radius
+        </Text>
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+          {ZONE_RADIUS_PRESETS.map((r) => (
+            <Pressable
+              key={r}
+              onPress={() => setRadiusM(r)}
+              style={[
+                styles.radiusChip,
+                {
+                  backgroundColor: radiusM === r ? '#00897B' : c.card,
+                  borderColor: radiusM === r ? '#00897B' : c.border,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  fontFamily: 'Inter_600SemiBold',
+                  fontSize: 13,
+                  color: radiusM === r ? '#fff' : c.foreground,
+                }}
+              >
+                {r >= 1000 ? `${r / 1000}km` : `${r}m`}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Btn title={loading ? 'Creating…' : 'Create safe zone here'} onPress={handleCreate} />
+      </View>
+    </Modal>
+  );
+}
+
 export default function Tracking() {
   const c = useColors();
   const insets = useScreenInsets();
@@ -225,11 +333,16 @@ export default function Tracking() {
   const isActive = trip?.status === 'active';
   const isEnded = trip?.status === 'ended';
 
-  const { permission, watching, begin } = useLocationSharing(tripId, !!isActive);
+  const { permission, watching, begin, isOnline } = useLocationSharing(tripId, !!isActive);
   const [explainerDismissed, setExplainerDismissed] = useState(false);
   const [selected, setSelected] = useState<MemberState | null>(null);
   const [focusMemberId, setFocusMemberId] = useState<number | null>(null);
   const [showDropPitstop, setShowDropPitstop] = useState(false);
+  const [showAddZone, setShowAddZone] = useState(false);
+
+  const safeZones = useListSafeZones(tripId, {
+    query: { queryKey: getListSafeZonesQueryKey(tripId), refetchInterval: isEnded ? false : 15000 },
+  });
 
   const messages = useListMessages(tripId, {
     query: {
@@ -247,6 +360,8 @@ export default function Tracking() {
   const dropPitstop = useDropPitstop();
   const cancelPitstop = useCancelPitstop();
   const respondToPitstop = useRespondToPitstop();
+  const createSafeZone = useCreateSafeZone();
+  const removeSafeZone = useRemoveSafeZone();
 
   const sortedMembers = useMemo(() => {
     const list = state.data?.members ? [...state.data.members] : [];
@@ -286,6 +401,39 @@ export default function Tracking() {
     prevOffRouteRef.current = next;
   }, [state.data?.members]);
 
+  // Foreground-only safe-zone enter/exit nudge. Piggybacks on the existing
+  // poll — this fires only while a member's app is open, unlike OS-level
+  // background geofencing (which needs "always" location permission we
+  // intentionally don't request).
+  const [zoneAlerts, setZoneAlerts] = useState<{ id: string; text: string }[]>([]);
+  const prevInZoneRef = useRef<Map<string, boolean> | null>(null);
+  useEffect(() => {
+    const members = state.data?.members;
+    const zones = safeZones.data;
+    if (!members || !zones || zones.length === 0) return;
+    const prev = prevInZoneRef.current;
+    const next = new Map<string, boolean>();
+    for (const z of zones) {
+      for (const m of members) {
+        if (m.lat == null || m.lng == null) continue;
+        const key = `${m.memberId}:${z.id}`;
+        const inside = haversineM({ lat: m.lat, lng: m.lng }, { lat: z.lat, lng: z.lng }) <= z.radiusM;
+        next.set(key, inside);
+        const wasInside = prev?.get(key);
+        if (prev && wasInside != null && wasInside !== inside) {
+          const zoneName = z.label || 'a safe zone';
+          const text = inside ? `${m.name} entered ${zoneName}` : `${m.name} left ${zoneName}`;
+          const alertId = `${key}-${Date.now()}`;
+          setZoneAlerts((cur) => [...cur, { id: alertId, text }]);
+          setTimeout(() => {
+            setZoneAlerts((cur) => cur.filter((a) => a.id !== alertId));
+          }, 15000);
+        }
+      }
+    }
+    prevInZoneRef.current = next;
+  }, [state.data?.members, safeZones.data]);
+
   const refresh = () => {
     qc.invalidateQueries({ queryKey: getGetTripStateQueryKey(tripId) });
     qc.invalidateQueries({ queryKey: getListTripsQueryKey() });
@@ -316,6 +464,46 @@ export default function Tracking() {
     respondToPitstop.mutate({ tripId, data: { response } }, { onSuccess: refresh });
   };
 
+  const refreshZones = () => {
+    qc.invalidateQueries({ queryKey: getListSafeZonesQueryKey(tripId) });
+  };
+
+  const handleCreateSafeZone = (label: string, radiusM: number) => {
+    const lat = me?.lat ?? trip?.startLat ?? 0;
+    const lng = me?.lng ?? trip?.startLng ?? 0;
+    createSafeZone.mutate(
+      { tripId, data: { lat, lng, radiusM, ...(label ? { label } : {}) } },
+      {
+        onSuccess: () => {
+          setShowAddZone(false);
+          refreshZones();
+        },
+      },
+    );
+  };
+
+  const handleRemoveZonesMenu = () => {
+    const zones = safeZones.data ?? [];
+    if (zones.length === 0) return;
+    const remove = (zone: SafeZone) =>
+      confirm('Remove safe zone?', 'Members will stop getting enter/exit alerts for it.', () => {
+        removeSafeZone.mutate({ tripId, zoneId: zone.id }, { onSuccess: refreshZones });
+      });
+    if (Platform.OS === 'web') {
+      // eslint-disable-next-line no-alert
+      const choice = window.prompt(
+        `Remove which safe zone?\n${zones.map((z, i) => `${i + 1}. ${z.label || 'Unnamed zone'}`).join('\n')}\n\nEnter a number (or cancel):`,
+      );
+      const idx = choice ? Number(choice) - 1 : -1;
+      if (idx >= 0 && idx < zones.length) remove(zones[idx]!);
+      return;
+    }
+    Alert.alert('Remove a safe zone', undefined, [
+      ...zones.map((z) => ({ text: z.label || 'Unnamed zone', onPress: () => remove(z) })),
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
+  };
+
   const menu = () => {
     const opts: { label: string; destructive?: boolean; run: () => void }[] = [
       { label: 'Trip details & join code', run: () => router.push(`/trip/${tripId}`) },
@@ -325,6 +513,10 @@ export default function Tracking() {
         label: pitstop ? 'Cancel pitstop' : 'Drop pitstop',
         run: () => (pitstop ? handleCancelPitstop() : setShowDropPitstop(true)),
       });
+      opts.push({ label: 'Add safe zone', run: () => setShowAddZone(true) });
+      if ((safeZones.data ?? []).length > 0) {
+        opts.push({ label: 'Remove a safe zone', run: handleRemoveZonesMenu });
+      }
       opts.push({
         label: 'End trip for everyone',
         destructive: true,
@@ -445,6 +637,7 @@ export default function Tracking() {
           members={sortedMembers}
           focusMemberId={focusMemberId}
           pitstop={pitstop}
+          safeZones={safeZones.data ?? []}
           onMemberPress={(m) => setSelected(m)}
         />
         {isEnded && summary ? (
@@ -495,6 +688,9 @@ export default function Tracking() {
 
       {/* Banners */}
       <View style={{ paddingHorizontal: 12, paddingTop: 8, gap: 6 }}>
+        {!isOnline ? (
+          <Banner tone="info" text="You're offline — reconnecting… your last position will send once back online." />
+        ) : null}
         {showDeniedBanner ? (
           <Banner
             tone="danger"
@@ -532,6 +728,15 @@ export default function Tracking() {
             text={`${a.name} appears to have taken a different route.`}
             actionTitle="Dismiss"
             onAction={() => setOffRouteAlerts((cur) => cur.filter((x) => x.id !== a.id))}
+          />
+        ))}
+        {zoneAlerts.map((a) => (
+          <Banner
+            key={a.id}
+            tone="info"
+            text={a.text}
+            actionTitle="Dismiss"
+            onAction={() => setZoneAlerts((cur) => cur.filter((x) => x.id !== a.id))}
           />
         ))}
         {pitstop && isActive ? (
@@ -607,6 +812,14 @@ export default function Tracking() {
         onDrop={handleDropPitstop}
         loading={dropPitstop.isPending}
       />
+
+      {/* Add Safe Zone Modal */}
+      <AddSafeZoneModal
+        visible={showAddZone}
+        onClose={() => setShowAddZone(false)}
+        onCreate={handleCreateSafeZone}
+        loading={createSafeZone.isPending}
+      />
     </View>
   );
 }
@@ -681,5 +894,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Inter_400Regular',
     marginBottom: 16,
+  },
+  radiusChip: {
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingVertical: 10,
   },
 });

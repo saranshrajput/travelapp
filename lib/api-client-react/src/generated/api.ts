@@ -37,6 +37,8 @@ import type {
   Place,
   ReverseGeocodeParams,
   RouteOption,
+  SafeZone,
+  SafeZoneInput,
   SearchPlacesParams,
   Session,
   SessionInput,
@@ -1915,6 +1917,228 @@ export const useRespondToPitstop = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getRespondToPitstopMutationOptions(options));
+    }
+
+export const getListSafeZonesUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/safe-zones`
+}
+
+/**
+ * @summary List active safe zones for a trip
+ */
+export const listSafeZones = async (tripId: number, options?: Parameters<typeof customFetch>[1]): Promise<SafeZone[]> => {
+
+  return customFetch<SafeZone[]>(getListSafeZonesUrl(tripId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSafeZonesQueryKey = (tripId: number,) => {
+    return [
+    `/api/trips/${tripId}/safe-zones`
+    ] as const;
+    }
+
+
+export const getListSafeZonesQueryOptions = <TData = Awaited<ReturnType<typeof listSafeZones>>, TError = ErrorType<unknown>>(tripId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSafeZones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSafeZonesQueryKey(tripId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSafeZones>>> = ({ signal }) => listSafeZones(tripId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: tripId !== null && tripId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSafeZones>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSafeZonesQueryResult = NonNullable<Awaited<ReturnType<typeof listSafeZones>>>
+export type ListSafeZonesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List active safe zones for a trip
+ */
+
+export function useListSafeZones<TData = Awaited<ReturnType<typeof listSafeZones>>, TError = ErrorType<unknown>>(
+ tripId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSafeZones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSafeZonesQueryOptions(tripId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSafeZoneUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/safe-zones`
+}
+
+/**
+ * @summary Create a safe zone (leader only)
+ */
+export const createSafeZone = async (tripId: number,
+    safeZoneInput: SafeZoneInput, options?: Parameters<typeof customFetch>[1]): Promise<SafeZone> => {
+
+  return customFetch<SafeZone>(getCreateSafeZoneUrl(tripId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(safeZoneInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSafeZoneMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSafeZone>>, TError,{tripId: number;data: BodyType<SafeZoneInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSafeZone>>, TError,{tripId: number;data: BodyType<SafeZoneInput>}, TContext> => {
+
+const mutationKey = ['createSafeZone'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSafeZone>>, {tripId: number;data: BodyType<SafeZoneInput>}> = (props) => {
+          const {tripId,data} = props ?? {};
+
+          return  createSafeZone(tripId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSafeZoneMutationResult = NonNullable<Awaited<ReturnType<typeof createSafeZone>>>
+    export type CreateSafeZoneMutationBody = BodyType<SafeZoneInput>
+    export type CreateSafeZoneMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a safe zone (leader only)
+ */
+export const useCreateSafeZone = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSafeZone>>, TError,{tripId: number;data: BodyType<SafeZoneInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSafeZone>>,
+        TError,
+        {tripId: number;data: BodyType<SafeZoneInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSafeZoneMutationOptions(options));
+    }
+
+export const getRemoveSafeZoneUrl = (tripId: number,
+    zoneId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/safe-zones/${zoneId}`
+}
+
+/**
+ * @summary Remove a safe zone (leader only)
+ */
+export const removeSafeZone = async (tripId: number,
+    zoneId: number, options?: Parameters<typeof customFetch>[1]): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getRemoveSafeZoneUrl(tripId,zoneId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveSafeZoneMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSafeZone>>, TError,{tripId: number;zoneId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeSafeZone>>, TError,{tripId: number;zoneId: number}, TContext> => {
+
+const mutationKey = ['removeSafeZone'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeSafeZone>>, {tripId: number;zoneId: number}> = (props) => {
+          const {tripId,zoneId} = props ?? {};
+
+          return  removeSafeZone(tripId,zoneId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveSafeZoneMutationResult = NonNullable<Awaited<ReturnType<typeof removeSafeZone>>>
+
+    export type RemoveSafeZoneMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Remove a safe zone (leader only)
+ */
+export const useRemoveSafeZone = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSafeZone>>, TError,{tripId: number;zoneId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeSafeZone>>,
+        TError,
+        {tripId: number;zoneId: number},
+        TContext
+      > => {
+      return useMutation(getRemoveSafeZoneMutationOptions(options));
     }
 
 export const getSearchPlacesUrl = (params: SearchPlacesParams,) => {

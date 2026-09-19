@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, Polyline, type MapHandle } from '@/components/map';
+import MapView, { Circle, Marker, Polyline, type MapHandle } from '@/components/map';
 import { Feather } from '@expo/vector-icons';
-import type { MemberState, Pitstop } from '@workspace/api-client-react';
+import type { MemberState, Pitstop, SafeZone } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { Avatar } from '@/components/UI';
 
@@ -27,6 +27,7 @@ export default function TripMap({
   onMemberPress,
   focusMemberId,
   pitstop,
+  safeZones = [],
   children,
 }: {
   route: { lat: number; lng: number }[];
@@ -36,6 +37,7 @@ export default function TripMap({
   onMemberPress?: (m: MemberState) => void;
   focusMemberId?: number | null;
   pitstop?: Pitstop | null;
+  safeZones?: SafeZone[];
   children?: React.ReactNode;
 }) {
   const c = useColors();
@@ -108,6 +110,16 @@ export default function TripMap({
             strokeWidth={4}
           />
         ) : null}
+        {safeZones.map((z) => (
+          <Circle
+            key={z.id}
+            center={{ latitude: z.lat, longitude: z.lng }}
+            radius={z.radiusM}
+            strokeColor="#00897B"
+            fillColor="#00897B"
+            strokeWidth={2}
+          />
+        ))}
         {start ? (
           <Marker coordinate={toLatLng(start)} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
             <View style={[styles.startDot, { borderColor: c.mapRoute }]} />

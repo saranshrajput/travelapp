@@ -34,6 +34,8 @@ export * from './pitstopStatus';
 export * from './place';
 export * from './reverseGeocodeParams';
 export * from './routeOption';
+export * from './safeZone';
+export * from './safeZoneInput';
 export * from './searchPlacesParams';
 export * from './session';
 export * from './sessionInput';
