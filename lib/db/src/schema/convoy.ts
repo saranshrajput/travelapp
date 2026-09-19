@@ -17,6 +17,9 @@ export const usersTable = pgTable("users", {
   name: text("name").notNull(),
   phone: text("phone").notNull().unique(),
   token: text("token").notNull().unique(),
+  // Optional, non-blocking: set once the user completes Firebase Phone Auth
+  // for this number. Never gates join/sign-in.
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

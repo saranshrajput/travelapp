@@ -51,7 +51,8 @@ import type {
   TripState,
   TripSummary,
   TripUpdate,
-  User
+  User,
+  VerifyPhoneInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -306,6 +307,77 @@ export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = Err
 
 
 
+
+export const getVerifyPhoneUrl = () => {
+
+
+
+
+  return `/api/auth/verify-phone`
+}
+
+/**
+ * @summary Mark the current user's phone verified via a Firebase Phone Auth ID token (optional, non-blocking)
+ */
+export const verifyPhone = async (verifyPhoneInput: VerifyPhoneInput, options?: Parameters<typeof customFetch>[1]): Promise<User> => {
+
+  return customFetch<User>(getVerifyPhoneUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(verifyPhoneInput)
+  }
+);}
+
+
+
+
+
+export const getVerifyPhoneMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyPhone>>, TError,{data: BodyType<VerifyPhoneInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyPhone>>, TError,{data: BodyType<VerifyPhoneInput>}, TContext> => {
+
+const mutationKey = ['verifyPhone'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyPhone>>, {data: BodyType<VerifyPhoneInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  verifyPhone(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyPhoneMutationResult = NonNullable<Awaited<ReturnType<typeof verifyPhone>>>
+    export type VerifyPhoneMutationBody = BodyType<VerifyPhoneInput>
+    export type VerifyPhoneMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Mark the current user's phone verified via a Firebase Phone Auth ID token (optional, non-blocking)
+ */
+export const useVerifyPhone = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyPhone>>, TError,{data: BodyType<VerifyPhoneInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyPhone>>,
+        TError,
+        {data: BodyType<VerifyPhoneInput>},
+        TContext
+      > => {
+      return useMutation(getVerifyPhoneMutationOptions(options));
+    }
 
 export const getListTripsUrl = () => {
 

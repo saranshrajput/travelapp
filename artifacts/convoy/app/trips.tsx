@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import {
+  getGetMeQueryKey,
   getListTripsQueryKey,
+  useGetMe,
   useListTrips,
+  useVerifyPhone,
   type TripSummary,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useSession, getSessionToken } from '@/lib/session';
 import { useScreenInsets } from '@/lib/insets';
-import { Btn, Card, EmptyState, SectionLabel } from '@/components/UI';
+import { Banner, Btn, Card, EmptyState, SectionLabel } from '@/components/UI';
+import VerifyPhoneModal from '@/components/VerifyPhoneModal';
+import { phoneVerifySupported } from '@/lib/phoneVerify';
+import { useQueryClient } from '@tanstack/react-query';
 import { fmtDate, fmtKm } from '@/lib/format';
 
 function TripCard({ s }: { s: TripSummary }) {
@@ -86,13 +92,38 @@ async function createDemoTrip(): Promise<number> {
 
 export default function Trips() {
   const c = useColors();
+  const qc = useQueryClient();
   const insets = useScreenInsets();
   const { user, signOut } = useSession();
   const [showPast, setShowPast] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
   const trips = useListTrips({
     query: { queryKey: getListTripsQueryKey(), refetchInterval: 10000 },
   });
+  const me = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
+  const verifyPhone = useVerifyPhone();
+
+  const handleVerified = (idToken: string) => {
+    verifyPhone.mutate(
+      { data: { idToken } },
+      {
+        onSuccess: () => {
+          setShowVerifyModal(false);
+          qc.invalidateQueries({ queryKey: getGetMeQueryKey() });
+        },
+        onError: (e) => {
+          const msg = (e as { error?: string })?.error ?? 'Verification failed.';
+          if (Platform.OS === 'web') {
+            // eslint-disable-next-line no-alert
+            window.alert(msg);
+          } else {
+            Alert.alert('Verification failed', msg);
+          }
+        },
+      },
+    );
+  };
 
   const handleTryDemo = async () => {
     setDemoLoading(true);
@@ -158,6 +189,15 @@ export default function Trips() {
           <RefreshControl refreshing={trips.isRefetching} onRefresh={() => trips.refetch()} />
         }
       >
+        {phoneVerifySupported && me.data && !me.data.verifiedAt ? (
+          <Banner
+            tone="info"
+            text="Verify your number for extra account security (optional)."
+            actionTitle="Verify"
+            onAction={() => setShowVerifyModal(true)}
+          />
+        ) : null}
+
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <Btn
             title="Create trip"
@@ -250,6 +290,13 @@ export default function Trips() {
           </View>
         )}
       </ScrollView>
+
+      <VerifyPhoneModal
+        visible={showVerifyModal}
+        phone={user?.phone ?? ''}
+        onClose={() => setShowVerifyModal(false)}
+        onVerified={handleVerified}
+      />
     </View>
   );
 }

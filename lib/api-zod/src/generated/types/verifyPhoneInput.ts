@@ -6,10 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface User {
-  id: number;
-  name: string;
-  phone: string;
-  /** @nullable */
-  verifiedAt?: string | null;
+export interface VerifyPhoneInput {
+  idToken: string;
 }

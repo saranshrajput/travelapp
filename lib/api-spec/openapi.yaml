@@ -66,6 +66,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+  /auth/verify-phone:
+    post:
+      operationId: verifyPhone
+      tags: [auth]
+      summary: Mark the current user's phone verified via a Firebase Phone Auth ID token (optional, non-blocking)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyPhoneInput"
+      responses:
+        "200":
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Token invalid, expired, or phone number doesn't match this account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /trips:
     get:
       operationId: listTrips
@@ -719,6 +743,14 @@ components:
         name:
           type: string
         phone:
+          type: string
+        verifiedAt:
+          type: ["string", "null"]
+    VerifyPhoneInput:
+      type: object
+      required: [idToken]
+      properties:
+        idToken:
           type: string
     Coordinate:
       type: object

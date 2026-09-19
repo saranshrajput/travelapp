@@ -1,8 +1,24 @@
 import { Router, type IRouter } from "express";
 import { eq, and, isNull } from "drizzle-orm";
-import { db, usersTable, tripMembersTable } from "@workspace/db";
-import { CreateSessionBody, CreateSessionResponse, GetMeResponse } from "@workspace/api-zod";
+import { db, usersTable, tripMembersTable, type UserRow } from "@workspace/db";
+import {
+  CreateSessionBody,
+  CreateSessionResponse,
+  GetMeResponse,
+  VerifyPhoneBody,
+  VerifyPhoneResponse,
+} from "@workspace/api-zod";
 import { authRequired, currentUser, generateToken } from "../lib/auth";
+import { phoneNumbersMatch, verifyFirebasePhoneToken } from "../lib/firebaseAuth";
+
+function userToApi(user: UserRow) {
+  return {
+    id: user.id,
+    name: user.name,
+    phone: user.phone,
+    verifiedAt: user.verifiedAt ? user.verifiedAt.toISOString() : null,
+  };
+}
 
 const router: IRouter = Router();
 
@@ -53,16 +69,40 @@ router.post("/auth/session", async (req, res): Promise<void> => {
   res.json(
     CreateSessionResponse.parse({
       token: user.token,
-      user: { id: user.id, name: user.name, phone: user.phone },
+      user: userToApi(user),
     }),
   );
 });
 
 router.get("/me", authRequired, async (_req, res): Promise<void> => {
   const user = currentUser(res);
-  res.json(
-    GetMeResponse.parse({ id: user.id, name: user.name, phone: user.phone }),
-  );
+  res.json(GetMeResponse.parse(userToApi(user)));
+});
+
+router.post("/auth/verify-phone", authRequired, async (req, res): Promise<void> => {
+  const body = VerifyPhoneBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const user = currentUser(res);
+  const verifiedPhone = await verifyFirebasePhoneToken(body.data.idToken);
+  if (!verifiedPhone) {
+    res.status(400).json({ error: "Invalid or expired verification token" });
+    return;
+  }
+  if (!phoneNumbersMatch(verifiedPhone, user.phone)) {
+    res.status(400).json({
+      error: "The verified number doesn't match this account's phone number",
+    });
+    return;
+  }
+  const [updated] = await db
+    .update(usersTable)
+    .set({ verifiedAt: new Date() })
+    .where(eq(usersTable.id, user.id))
+    .returning();
+  res.json(VerifyPhoneResponse.parse(userToApi(updated!)));
 });
 
 export default router;

@@ -28,11 +28,17 @@ export interface User {
   id: number;
   name: string;
   phone: string;
+  /** @nullable */
+  verifiedAt?: string | null;
 }
 
 export interface Session {
   token: string;
   user: User;
+}
+
+export interface VerifyPhoneInput {
+  idToken: string;
 }
 
 export interface Coordinate {

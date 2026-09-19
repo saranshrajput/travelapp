@@ -58,6 +58,7 @@
   "dependencies": {
     "@types/leaflet": "^1.9.22",
     "expo-network": "~8.0.8",
+    "firebase": "^12.19.0",
     "leaflet": "^1.9.4",
     "react-native-maps": "1.18.0"
   }

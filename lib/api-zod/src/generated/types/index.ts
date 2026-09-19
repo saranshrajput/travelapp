@@ -57,3 +57,4 @@ export * from './tripSummary';
 export * from './tripSummaryMyRole';
 export * from './tripUpdate';
 export * from './user';
+export * from './verifyPhoneInput';

@@ -35,7 +35,8 @@ export const CreateSessionResponse = zod.object({
   "user": zod.object({
   "id": zod.number(),
   "name": zod.string(),
-  "phone": zod.string()
+  "phone": zod.string(),
+  "verifiedAt": zod.string().nullish()
 })
 })
 
@@ -46,7 +47,23 @@ export const CreateSessionResponse = zod.object({
 export const GetMeResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
-  "phone": zod.string()
+  "phone": zod.string(),
+  "verifiedAt": zod.string().nullish()
+})
+
+
+/**
+ * @summary Mark the current user's phone verified via a Firebase Phone Auth ID token (optional, non-blocking)
+ */
+export const VerifyPhoneBody = zod.object({
+  "idToken": zod.string()
+})
+
+export const VerifyPhoneResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "phone": zod.string(),
+  "verifiedAt": zod.string().nullish()
 })
 
 
