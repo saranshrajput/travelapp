@@ -566,7 +566,8 @@ export const GetTripStateResponse = zod.object({
   "gapM": zod.number().nullish().describe('Signed route gap to the caller in meters (positive = ahead of you). Straight-line if off-route.'),
   "gapS": zod.number().nullish().describe('Estimated time gap in seconds (null when unknown)'),
   "speedMps": zod.number().nullish(),
-  "sortIndex": zod.number().describe('Front-to-back order along the route (0 = furthest ahead)')
+  "sortIndex": zod.number().describe('Front-to-back order along the route (0 = furthest ahead)'),
+  "recordHistory": zod.boolean().optional().describe('Whether this member has opted in to breadcrumb replay for this trip (meaningful for isSelf)')
 })),
   "sharingCount": zod.number(),
   "joinedCount": zod.number(),
@@ -593,6 +594,15 @@ export const GetTripStateResponse = zod.object({
   "response": zod.enum(['on_my_way', 'already_there'])
 })),
   "createdAt": zod.string()
+}).optional(),
+  "activeSos": zod.object({
+  "id": zod.number(),
+  "memberId": zod.number(),
+  "name": zod.string(),
+  "color": zod.string(),
+  "initial": zod.string(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.string()
 }).optional()
 })
 
@@ -614,6 +624,7 @@ export const ListMessagesResponseItem = zod.object({
   "recipientMemberId": zod.number().nullish(),
   "recipientName": zod.string().nullish(),
   "body": zod.string(),
+  "kind": zod.enum(['text', 'sos']),
   "createdAt": zod.string()
 })
 export const ListMessagesResponse = zod.array(ListMessagesResponseItem)
@@ -645,8 +656,75 @@ export const SendMessageResponse = zod.object({
   "recipientMemberId": zod.number().nullish(),
   "recipientName": zod.string().nullish(),
   "body": zod.string(),
+  "kind": zod.enum(['text', 'sos']),
   "createdAt": zod.string()
 })
+
+
+/**
+ * @summary Broadcast an in-app SOS alert to the whole trip (no outside SMS)
+ */
+export const TriggerSosParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const triggerSosBodyNoteMax = 200;
+
+
+
+export const TriggerSosBody = zod.object({
+  "note": zod.string().max(triggerSosBodyNoteMax).optional()
+})
+
+export const TriggerSosResponse = zod.object({
+  "id": zod.number(),
+  "tripId": zod.number(),
+  "senderMemberId": zod.number(),
+  "senderName": zod.string(),
+  "senderColor": zod.string(),
+  "senderInitial": zod.string(),
+  "recipientMemberId": zod.number().nullish(),
+  "recipientName": zod.string().nullish(),
+  "body": zod.string(),
+  "kind": zod.enum(['text', 'sos']),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Opt in/out of breadcrumb location history for this trip (self only)
+ */
+export const SetHistoryOptInParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const SetHistoryOptInBody = zod.object({
+  "enabled": zod.boolean()
+})
+
+export const SetHistoryOptInResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Get breadcrumb replay for opted-in members (rows older than 7 days past trip end are purged lazily)
+ */
+export const GetTripHistoryParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const GetTripHistoryResponseItem = zod.object({
+  "memberId": zod.number(),
+  "name": zod.string(),
+  "color": zod.string(),
+  "points": zod.array(zod.object({
+  "lat": zod.number(),
+  "lng": zod.number(),
+  "recordedAt": zod.string()
+}))
+})
+export const GetTripHistoryResponse = zod.array(GetTripHistoryResponseItem)
 
 
 /**

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Circle, Marker, Polyline, type MapHandle } from '@/components/map';
 import { Feather } from '@expo/vector-icons';
-import type { MemberState, Pitstop, SafeZone } from '@workspace/api-client-react';
+import type { MemberState, MemberHistory, Pitstop, SafeZone } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { Avatar } from '@/components/UI';
 
@@ -28,6 +28,7 @@ export default function TripMap({
   focusMemberId,
   pitstop,
   safeZones = [],
+  history = [],
   children,
 }: {
   route: { lat: number; lng: number }[];
@@ -38,6 +39,7 @@ export default function TripMap({
   focusMemberId?: number | null;
   pitstop?: Pitstop | null;
   safeZones?: SafeZone[];
+  history?: MemberHistory[];
   children?: React.ReactNode;
 }) {
   const c = useColors();
@@ -110,6 +112,16 @@ export default function TripMap({
             strokeWidth={4}
           />
         ) : null}
+        {history
+          .filter((h) => h.points.length > 1)
+          .map((h) => (
+            <Polyline
+              key={`history-${h.memberId}`}
+              coordinates={h.points.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
+              strokeColor={h.color}
+              strokeWidth={3}
+            />
+          ))}
         {safeZones.map((z) => (
           <Circle
             key={z.id}

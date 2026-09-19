@@ -365,6 +365,61 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Message"
+  /trips/{tripId}/sos:
+    post:
+      operationId: triggerSos
+      tags: [messages]
+      summary: Broadcast an in-app SOS alert to the whole trip (no outside SMS)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SosInput"
+      responses:
+        "201":
+          description: SOS sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+  /trips/{tripId}/history-opt-in:
+    post:
+      operationId: setHistoryOptIn
+      tags: [tracking]
+      summary: Opt in/out of breadcrumb location history for this trip (self only)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HistoryOptInInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+  /trips/{tripId}/history:
+    get:
+      operationId: getTripHistory
+      tags: [tracking]
+      summary: Get breadcrumb replay for opted-in members (rows older than 7 days past trip end are purged lazily)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Per-member breadcrumb history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemberHistory"
   /trips/{tripId}/pitstop:
     get:
       operationId: getActivePitstop
@@ -985,6 +1040,9 @@ components:
         sortIndex:
           type: number
           description: Front-to-back order along the route (0 = furthest ahead)
+        recordHistory:
+          type: boolean
+          description: Whether this member has opted in to breadcrumb replay for this trip (meaningful for isSelf)
     TripState:
       type: object
       required: [trip, members, sharingCount, joinedCount, serverTime]
@@ -1005,6 +1063,8 @@ components:
           $ref: "#/components/schemas/TripEndSummary"
         pitstop:
           $ref: "#/components/schemas/Pitstop"
+        activeSos:
+          $ref: "#/components/schemas/SosAlert"
     TripEndSummary:
       type: object
       required: [totalDistanceM, durationS, completedNames]
@@ -1121,7 +1181,7 @@ components:
           description: Null or absent = whole group
     Message:
       type: object
-      required: [id, tripId, senderMemberId, senderName, senderColor, senderInitial, body, createdAt]
+      required: [id, tripId, senderMemberId, senderName, senderColor, senderInitial, body, kind, createdAt]
       properties:
         id:
           type: number
@@ -1141,5 +1201,62 @@ components:
           type: ["string", "null"]
         body:
           type: string
+        kind:
+          type: string
+          enum: [text, sos]
         createdAt:
           type: string
+    SosInput:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 200
+    SosAlert:
+      type: object
+      required: [id, memberId, name, color, initial, createdAt]
+      properties:
+        id:
+          type: number
+        memberId:
+          type: number
+        name:
+          type: string
+        color:
+          type: string
+        initial:
+          type: string
+        note:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+    HistoryOptInInput:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+    HistoryPoint:
+      type: object
+      required: [lat, lng, recordedAt]
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        recordedAt:
+          type: string
+    MemberHistory:
+      type: object
+      required: [memberId, name, color, points]
+      properties:
+        memberId:
+          type: number
+        name:
+          type: string
+        color:
+          type: string
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryPoint"

@@ -1,6 +1,14 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, tripsTable, tripMembersTable, pitstopsTable, pitstopResponsesTable } from "@workspace/db";
+import { eq, and, lt, inArray, desc } from "drizzle-orm";
+import {
+  db,
+  tripsTable,
+  tripMembersTable,
+  pitstopsTable,
+  pitstopResponsesTable,
+  messagesTable,
+  locationHistoryTable,
+} from "@workspace/db";
 import {
   PostLocationParams,
   PostLocationBody,
@@ -8,6 +16,9 @@ import {
   SetSharingBody,
   GetTripStateParams,
   GetTripStateResponse,
+  SetHistoryOptInParams,
+  SetHistoryOptInBody,
+  GetTripHistoryParams,
 } from "@workspace/api-zod";
 import { authRequired, currentUser } from "../lib/auth";
 import {
@@ -22,7 +33,18 @@ import { haversineM } from "../lib/geo";
 
 const router: IRouter = Router();
 
-router.use(["/trips/:tripId/location", "/trips/:tripId/sharing", "/trips/:tripId/state"], authRequired);
+router.use(
+  [
+    "/trips/:tripId/location",
+    "/trips/:tripId/sharing",
+    "/trips/:tripId/state",
+    "/trips/:tripId/history-opt-in",
+    "/trips/:tripId/history",
+  ],
+  authRequired,
+);
+
+const HISTORY_RETENTION_DAYS = 7;
 
 const MOVE_THRESHOLD_M = 25;
 
@@ -104,7 +126,118 @@ router.post("/trips/:tripId/location", async (req, res): Promise<void> => {
     })
     .where(eq(tripMembersTable.id, self.id));
 
+  if (self.recordHistory) {
+    await db.insert(locationHistoryTable).values({
+      tripId: trip.id,
+      tripMemberId: self.id,
+      lat: d.lat,
+      lng: d.lng,
+      recordedAt: now,
+    });
+  }
+
   res.json({ ok: true });
+});
+
+router.post("/trips/:tripId/history-opt-in", async (req, res): Promise<void> => {
+  const user = currentUser(res);
+  const params = SetHistoryOptInParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = SetHistoryOptInBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const roster = await getRoster(params.data.tripId);
+  const self = findSelf(roster, user.id);
+  if (!self) {
+    res.status(403).json({ error: "You are not a member of this trip" });
+    return;
+  }
+  await db
+    .update(tripMembersTable)
+    .set({ recordHistory: body.data.enabled })
+    .where(eq(tripMembersTable.id, self.id));
+  res.json({ ok: true });
+});
+
+router.get("/trips/:tripId/history", async (req, res): Promise<void> => {
+  const user = currentUser(res);
+  const params = GetTripHistoryParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [trip] = await db
+    .select()
+    .from(tripsTable)
+    .where(eq(tripsTable.id, params.data.tripId));
+  if (!trip) {
+    res.status(404).json({ error: "Trip not found" });
+    return;
+  }
+  const roster = await getRoster(trip.id);
+  const self = findSelf(roster, user.id);
+  if (!self) {
+    res.status(403).json({ error: "You are not a member of this trip" });
+    return;
+  }
+
+  // Lazy purge: drop breadcrumb rows more than HISTORY_RETENTION_DAYS past trip end.
+  if (trip.endedAt) {
+    const cutoff = new Date(
+      trip.endedAt.getTime() + HISTORY_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+    );
+    if (Date.now() >= cutoff.getTime()) {
+      await db
+        .delete(locationHistoryTable)
+        .where(
+          and(
+            eq(locationHistoryTable.tripId, trip.id),
+            lt(locationHistoryTable.recordedAt, cutoff),
+          ),
+        );
+      res.json([]);
+      return;
+    }
+  }
+
+  const optedInIds = roster.filter((m) => m.recordHistory).map((m) => m.id);
+  if (optedInIds.length === 0) {
+    res.json([]);
+    return;
+  }
+  const rows = await db
+    .select()
+    .from(locationHistoryTable)
+    .where(
+      and(
+        eq(locationHistoryTable.tripId, trip.id),
+        inArray(locationHistoryTable.tripMemberId, optedInIds),
+      ),
+    )
+    .orderBy(locationHistoryTable.recordedAt);
+
+  const byMember = new Map<number, { lat: number; lng: number; recordedAt: string }[]>();
+  for (const r of rows) {
+    const arr = byMember.get(r.tripMemberId) ?? [];
+    arr.push({ lat: r.lat, lng: r.lng, recordedAt: r.recordedAt.toISOString() });
+    byMember.set(r.tripMemberId, arr);
+  }
+  const byId = new Map(roster.map((m) => [m.id, m]));
+  res.json(
+    optedInIds
+      .filter((id) => (byMember.get(id)?.length ?? 0) > 0)
+      .map((id) => ({
+        memberId: id,
+        name: byId.get(id)?.name ?? "Member",
+        color: byId.get(id)?.color ?? "#9AA0A6",
+        points: byMember.get(id) ?? [],
+      })),
+  );
 });
 
 router.post("/trips/:tripId/sharing", async (req, res): Promise<void> => {
@@ -213,6 +346,30 @@ router.get("/trips/:tripId/state", async (req, res): Promise<void> => {
     };
   }
 
+  // Most recent SOS broadcast in the last 15 minutes, if any.
+  const SOS_WINDOW_MS = 15 * 60 * 1000;
+  const [recentSos] = await db
+    .select()
+    .from(messagesTable)
+    .where(and(eq(messagesTable.tripId, trip.id), eq(messagesTable.kind, "sos")))
+    .orderBy(desc(messagesTable.id))
+    .limit(1);
+
+  let sosPayload: Record<string, unknown> | undefined;
+  if (recentSos && now.getTime() - recentSos.createdAt.getTime() <= SOS_WINDOW_MS) {
+    const byId = new Map(roster.map((m) => [m.id, m]));
+    const sender = byId.get(recentSos.senderMemberId);
+    sosPayload = {
+      id: recentSos.id,
+      memberId: recentSos.senderMemberId,
+      name: sender?.name ?? "A member",
+      color: sender?.color ?? "#EA4335",
+      initial: sender?.initial ?? "?",
+      note: null,
+      createdAt: recentSos.createdAt.toISOString(),
+    };
+  }
+
   res.json(
     GetTripStateResponse.parse({
       trip: tripToApi(trip),
@@ -222,6 +379,7 @@ router.get("/trips/:tripId/state", async (req, res): Promise<void> => {
       serverTime: now.toISOString(),
       ...(trip.endSummary ? { summary: trip.endSummary } : {}),
       ...(pitstopPayload ? { pitstop: pitstopPayload } : {}),
+      ...(sosPayload ? { activeSos: sosPayload } : {}),
     }),
   );
 });

@@ -23,10 +23,12 @@ import type {
   ErrorResponse,
   GetRouteOptionsParams,
   HealthStatus,
+  HistoryOptInInput,
   JoinInput,
   JoinPreview,
   LocationFix,
   Member,
+  MemberHistory,
   MemberInvite,
   Message,
   MessageInput,
@@ -43,6 +45,7 @@ import type {
   Session,
   SessionInput,
   SharingState,
+  SosInput,
   TripDetail,
   TripInput,
   TripState,
@@ -1549,6 +1552,227 @@ export const useSendMessage = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getSendMessageMutationOptions(options));
     }
+
+export const getTriggerSosUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/sos`
+}
+
+/**
+ * @summary Broadcast an in-app SOS alert to the whole trip (no outside SMS)
+ */
+export const triggerSos = async (tripId: number,
+    sosInput?: SosInput, options?: Parameters<typeof customFetch>[1]): Promise<Message> => {
+
+  return customFetch<Message>(getTriggerSosUrl(tripId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(sosInput)
+  }
+);}
+
+
+
+
+
+export const getTriggerSosMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triggerSos>>, TError,{tripId: number;data?: BodyType<SosInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof triggerSos>>, TError,{tripId: number;data?: BodyType<SosInput>}, TContext> => {
+
+const mutationKey = ['triggerSos'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof triggerSos>>, {tripId: number;data?: BodyType<SosInput>}> = (props) => {
+          const {tripId,data} = props ?? {};
+
+          return  triggerSos(tripId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TriggerSosMutationResult = NonNullable<Awaited<ReturnType<typeof triggerSos>>>
+    export type TriggerSosMutationBody = BodyType<SosInput> | undefined
+    export type TriggerSosMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Broadcast an in-app SOS alert to the whole trip (no outside SMS)
+ */
+export const useTriggerSos = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triggerSos>>, TError,{tripId: number;data?: BodyType<SosInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof triggerSos>>,
+        TError,
+        {tripId: number;data?: BodyType<SosInput>},
+        TContext
+      > => {
+      return useMutation(getTriggerSosMutationOptions(options));
+    }
+
+export const getSetHistoryOptInUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/history-opt-in`
+}
+
+/**
+ * @summary Opt in/out of breadcrumb location history for this trip (self only)
+ */
+export const setHistoryOptIn = async (tripId: number,
+    historyOptInInput: HistoryOptInInput, options?: Parameters<typeof customFetch>[1]): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getSetHistoryOptInUrl(tripId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(historyOptInInput)
+  }
+);}
+
+
+
+
+
+export const getSetHistoryOptInMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setHistoryOptIn>>, TError,{tripId: number;data: BodyType<HistoryOptInInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setHistoryOptIn>>, TError,{tripId: number;data: BodyType<HistoryOptInInput>}, TContext> => {
+
+const mutationKey = ['setHistoryOptIn'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setHistoryOptIn>>, {tripId: number;data: BodyType<HistoryOptInInput>}> = (props) => {
+          const {tripId,data} = props ?? {};
+
+          return  setHistoryOptIn(tripId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetHistoryOptInMutationResult = NonNullable<Awaited<ReturnType<typeof setHistoryOptIn>>>
+    export type SetHistoryOptInMutationBody = BodyType<HistoryOptInInput>
+    export type SetHistoryOptInMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Opt in/out of breadcrumb location history for this trip (self only)
+ */
+export const useSetHistoryOptIn = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setHistoryOptIn>>, TError,{tripId: number;data: BodyType<HistoryOptInInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setHistoryOptIn>>,
+        TError,
+        {tripId: number;data: BodyType<HistoryOptInInput>},
+        TContext
+      > => {
+      return useMutation(getSetHistoryOptInMutationOptions(options));
+    }
+
+export const getGetTripHistoryUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/history`
+}
+
+/**
+ * @summary Get breadcrumb replay for opted-in members (rows older than 7 days past trip end are purged lazily)
+ */
+export const getTripHistory = async (tripId: number, options?: Parameters<typeof customFetch>[1]): Promise<MemberHistory[]> => {
+
+  return customFetch<MemberHistory[]>(getGetTripHistoryUrl(tripId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTripHistoryQueryKey = (tripId: number,) => {
+    return [
+    `/api/trips/${tripId}/history`
+    ] as const;
+    }
+
+
+export const getGetTripHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getTripHistory>>, TError = ErrorType<unknown>>(tripId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTripHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTripHistoryQueryKey(tripId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTripHistory>>> = ({ signal }) => getTripHistory(tripId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: tripId !== null && tripId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTripHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTripHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getTripHistory>>>
+export type GetTripHistoryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get breadcrumb replay for opted-in members (rows older than 7 days past trip end are purged lazily)
+ */
+
+export function useGetTripHistory<TData = Awaited<ReturnType<typeof getTripHistory>>, TError = ErrorType<unknown>>(
+ tripId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTripHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTripHistoryQueryOptions(tripId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetActivePitstopUrl = (tripId: number,) => {
 

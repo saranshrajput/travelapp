@@ -5,6 +5,7 @@
  * Convoy API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { MessageKind } from './messageKind';
 
 export interface Message {
   id: number;
@@ -18,5 +19,6 @@ export interface Message {
   /** @nullable */
   recipientName?: string | null;
   body: string;
+  kind: MessageKind;
   createdAt: string;
 }

@@ -57,4 +57,6 @@ export interface MemberState {
   speedMps?: number | null;
   /** Front-to-back order along the route (0 = furthest ahead) */
   sortIndex: number;
+  /** Whether this member has opted in to breadcrumb replay for this trip (meaningful for isSelf) */
+  recordHistory?: boolean;
 }

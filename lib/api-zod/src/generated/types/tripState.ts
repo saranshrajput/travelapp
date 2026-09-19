@@ -7,6 +7,7 @@
  */
 import type { MemberState } from './memberState';
 import type { Pitstop } from './pitstop';
+import type { SosAlert } from './sosAlert';
 import type { Trip } from './trip';
 import type { TripEndSummary } from './tripEndSummary';
 
@@ -18,4 +19,5 @@ export interface TripState {
   serverTime: string;
   summary?: TripEndSummary;
   pitstop?: Pitstop;
+  activeSos?: SosAlert;
 }

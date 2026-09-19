@@ -282,6 +282,8 @@ export interface MemberState {
   speedMps?: number | null;
   /** Front-to-back order along the route (0 = furthest ahead) */
   sortIndex: number;
+  /** Whether this member has opted in to breadcrumb replay for this trip (meaningful for isSelf) */
+  recordHistory?: boolean;
 }
 
 export interface TripEndSummary {
@@ -328,6 +330,17 @@ export interface Pitstop {
   createdAt: string;
 }
 
+export interface SosAlert {
+  id: number;
+  memberId: number;
+  name: string;
+  color: string;
+  initial: string;
+  /** @nullable */
+  note?: string | null;
+  createdAt: string;
+}
+
 export interface TripState {
   trip: Trip;
   members: MemberState[];
@@ -336,6 +349,7 @@ export interface TripState {
   serverTime: string;
   summary?: TripEndSummary;
   pitstop?: Pitstop;
+  activeSos?: SosAlert;
 }
 
 export interface PitstopInput {
@@ -388,6 +402,14 @@ export interface MessageInput {
   recipientMemberId?: number | null;
 }
 
+export type MessageKind = typeof MessageKind[keyof typeof MessageKind];
+
+
+export const MessageKind = {
+  text: 'text',
+  sos: 'sos',
+} as const;
+
 export interface Message {
   id: number;
   tripId: number;
@@ -400,7 +422,30 @@ export interface Message {
   /** @nullable */
   recipientName?: string | null;
   body: string;
+  kind: MessageKind;
   createdAt: string;
+}
+
+export interface SosInput {
+  /** @maxLength 200 */
+  note?: string;
+}
+
+export interface HistoryOptInInput {
+  enabled: boolean;
+}
+
+export interface HistoryPoint {
+  lat: number;
+  lng: number;
+  recordedAt: string;
+}
+
+export interface MemberHistory {
+  memberId: number;
+  name: string;
+  color: string;
+  points: HistoryPoint[];
 }
 
 export type SearchPlacesParams = {

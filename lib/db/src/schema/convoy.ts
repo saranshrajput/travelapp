@@ -68,6 +68,10 @@ export const tripMembersTable = pgTable("trip_members", {
   vehicleType: text("vehicle_type"),
   joinStatus: text("join_status").notNull().default("joined"), // joined | invited
   sharing: boolean("sharing").notNull().default(false),
+  // opt-in per trip: when true, location fixes are also appended to
+  // location_history for post-trip breadcrumb replay (default off to
+  // preserve the minimal-retention design for everyone else)
+  recordHistory: boolean("record_history").notNull().default(false),
   // latest fix
   lastLat: doublePrecision("last_lat"),
   lastLng: doublePrecision("last_lng"),
@@ -100,7 +104,23 @@ export const messagesTable = pgTable("messages", {
     () => tripMembersTable.id,
   ),
   body: text("body").notNull(),
+  kind: text("kind").notNull().default("text"), // text | sos
   createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const locationHistoryTable = pgTable("location_history", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id")
+    .notNull()
+    .references(() => tripsTable.id),
+  tripMemberId: integer("trip_member_id")
+    .notNull()
+    .references(() => tripMembersTable.id),
+  lat: doublePrecision("lat").notNull(),
+  lng: doublePrecision("lng").notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
@@ -194,3 +214,9 @@ export const insertMessageSchema = createInsertSchema(messagesTable).omit({
 });
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type MessageRow = typeof messagesTable.$inferSelect;
+
+export const insertLocationHistorySchema = createInsertSchema(
+  locationHistoryTable,
+).omit({ id: true });
+export type InsertLocationHistory = z.infer<typeof insertLocationHistorySchema>;
+export type LocationHistoryRow = typeof locationHistoryTable.$inferSelect;

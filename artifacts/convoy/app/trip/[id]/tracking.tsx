@@ -15,6 +15,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetTripHistoryQueryKey,
   getGetTripQueryKey,
   getGetTripStateQueryKey,
   getListMessagesQueryKey,
@@ -26,6 +27,7 @@ import {
   useRespondToPitstop,
   useEndTrip,
   useGetTrip,
+  useGetTripHistory,
   useGetTripState,
   useLeaveTrip,
   useListMessages,
@@ -33,6 +35,8 @@ import {
   usePromoteMember,
   useRemoveMember,
   useRemoveSafeZone,
+  useSetHistoryOptIn,
+  useTriggerSos,
   type MemberState,
   type Pitstop,
   type SafeZone,
@@ -362,6 +366,12 @@ export default function Tracking() {
   const respondToPitstop = useRespondToPitstop();
   const createSafeZone = useCreateSafeZone();
   const removeSafeZone = useRemoveSafeZone();
+  const triggerSos = useTriggerSos();
+  const setHistoryOptIn = useSetHistoryOptIn();
+
+  const history = useGetTripHistory(tripId, {
+    query: { queryKey: getGetTripHistoryQueryKey(tripId), enabled: isEnded },
+  });
 
   const sortedMembers = useMemo(() => {
     const list = state.data?.members ? [...state.data.members] : [];
@@ -434,9 +444,28 @@ export default function Tracking() {
     prevInZoneRef.current = next;
   }, [state.data?.members, safeZones.data]);
 
+  // Persistent SOS banner: shows whenever the server reports an SOS from the
+  // last 15 minutes, re-appearing on a new SOS even if the previous one was
+  // dismissed. In-app broadcast only — no SMS to anyone outside the trip.
+  const activeSos = state.data?.activeSos ?? null;
+  const [dismissedSosId, setDismissedSosId] = useState<number | null>(null);
+
   const refresh = () => {
     qc.invalidateQueries({ queryKey: getGetTripStateQueryKey(tripId) });
     qc.invalidateQueries({ queryKey: getListTripsQueryKey() });
+  };
+
+  const handleSos = () => {
+    confirm(
+      'Send SOS?',
+      'Everyone on this trip will see an alert immediately. This does not call for help outside the app.',
+      () => triggerSos.mutate({ tripId, data: {} }, { onSuccess: refresh }),
+    );
+  };
+
+  const handleToggleHistory = () => {
+    const next = !me?.recordHistory;
+    setHistoryOptIn.mutate({ tripId, data: { enabled: next } }, { onSuccess: refresh });
   };
 
   const handleDropPitstop = (label: string) => {
@@ -524,6 +553,12 @@ export default function Tracking() {
           confirm('End the trip?', 'Location sharing stops for everyone immediately.', () =>
             endTrip.mutate({ tripId }, { onSuccess: refresh }),
           ),
+      });
+    }
+    if (isActive) {
+      opts.push({
+        label: me?.recordHistory ? 'Stop recording my path' : 'Record my path for replay',
+        run: handleToggleHistory,
       });
     }
     if (!isEnded) {
@@ -638,6 +673,7 @@ export default function Tracking() {
           focusMemberId={focusMemberId}
           pitstop={pitstop}
           safeZones={safeZones.data ?? []}
+          history={isEnded ? (history.data ?? []) : []}
           onMemberPress={(m) => setSelected(m)}
         />
         {isEnded && summary ? (
@@ -684,10 +720,28 @@ export default function Tracking() {
             </Text>
           </Pressable>
         ) : null}
+        {/* SOS FAB — any member, active trip only */}
+        {isActive ? (
+          <Pressable
+            onPress={handleSos}
+            style={[styles.sosFab, { backgroundColor: '#D93025', borderRadius: c.radius }]}
+          >
+            <Feather name="alert-triangle" size={15} color="#fff" />
+            <Text style={{ color: '#fff', fontFamily: 'Inter_700Bold', fontSize: 13 }}>SOS</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Banners */}
       <View style={{ paddingHorizontal: 12, paddingTop: 8, gap: 6 }}>
+        {activeSos && activeSos.id !== dismissedSosId ? (
+          <Banner
+            tone="danger"
+            text={`🆘 ${activeSos.name} triggered SOS — needs help!`}
+            actionTitle="Dismiss"
+            onAction={() => setDismissedSosId(activeSos.id)}
+          />
+        ) : null}
         {!isOnline ? (
           <Banner tone="info" text="You're offline — reconnecting… your last position will send once back online." />
         ) : null}
@@ -846,6 +900,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 14,
     left: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  sosFab: {
+    position: 'absolute',
+    bottom: 62,
+    right: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,

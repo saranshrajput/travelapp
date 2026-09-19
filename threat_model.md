@@ -40,6 +40,8 @@ Pitstop data (coordinates, labels) originates from leader input. Server must val
 
 Trip and member data must be scoped to the requesting user's trips. List/read endpoints must not return data for trips the caller does not belong to. Error responses must not leak stack traces or DB details in production. `DATABASE_URL` must not appear in logs or client bundles.
 
+Breadcrumb replay (`location_history`) is opt-in per member per trip and is a bounded exception to the latest/previous-fix-only retention model (see `CONVOY_PRD.md` §4). `GET /trips/:tripId/history` only returns points for members who opted in and only to other members of the same trip; rows are lazily purged 7 days after the trip ends. SOS broadcasts (`kind: "sos"` messages) are visible to the whole trip by design (not a disclosure risk) and are never sent outside the app — there is no SMS/third-party escalation path.
+
 ### Denial of Service
 
 The static server reads files synchronously (`fs.readFileSync`); large files or high request volume could block the event loop. No rate limiting is currently visible on the static server. The API server should rate-limit auth and mutation endpoints.

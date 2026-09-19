@@ -270,6 +270,7 @@ export type MemberStateApi = {
   gapS: number | null;
   speedMps: number | null;
   sortIndex: number;
+  recordHistory: boolean;
 };
 
 export function computeMemberStates(
@@ -387,6 +388,7 @@ export function computeMemberStates(
       gapS,
       speedMps: e.m.avgSpeedMps,
       sortIndex: sortIndexById.get(e.m.id) ?? 0,
+      recordHistory: e.m.recordHistory,
     };
   });
 }

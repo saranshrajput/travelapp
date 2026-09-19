@@ -14,6 +14,8 @@ import {
   SendMessageParams,
   SendMessageBody,
   SendMessageResponse,
+  TriggerSosParams,
+  TriggerSosBody,
 } from "@workspace/api-zod";
 import { authRequired, currentUser } from "../lib/auth";
 import { findSelf, getRoster } from "../lib/convoy";
@@ -21,6 +23,7 @@ import { findSelf, getRoster } from "../lib/convoy";
 const router: IRouter = Router();
 
 router.use("/trips/:tripId/messages", authRequired);
+router.use("/trips/:tripId/sos", authRequired);
 
 function messageToApi(msg: MessageRow, byId: Map<number, TripMemberRow>) {
   const sender = byId.get(msg.senderMemberId);
@@ -37,6 +40,7 @@ function messageToApi(msg: MessageRow, byId: Map<number, TripMemberRow>) {
     recipientName:
       recipient?.name ?? (msg.recipientMemberId != null ? "Former member" : null),
     body: msg.body,
+    kind: msg.kind as "text" | "sos",
     createdAt: msg.createdAt.toISOString(),
   };
 }
@@ -132,6 +136,46 @@ router.post("/trips/:tripId/messages", async (req, res): Promise<void> => {
       senderMemberId: self.id,
       recipientMemberId: recipientId,
       body: body.data.body.trim(),
+    })
+    .returning();
+  const byId = new Map(roster.map((m) => [m.id, m]));
+  res.status(201).json(SendMessageResponse.parse(messageToApi(msg!, byId)));
+});
+
+router.post("/trips/:tripId/sos", async (req, res): Promise<void> => {
+  const user = currentUser(res);
+  const params = TriggerSosParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = TriggerSosBody.safeParse(req.body ?? {});
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const loaded = await loadMembership(params.data.tripId, user.id);
+  if (!loaded) {
+    res.status(403).json({ error: "You are not a member of this trip" });
+    return;
+  }
+  const { trip, roster, self } = loaded;
+  if (trip.status !== "active") {
+    res.status(409).json({ error: "Trip is not active" });
+    return;
+  }
+  const note = body.data.note?.trim();
+  const text = note
+    ? `🆘 ${self.name} needs help: ${note}`
+    : `🆘 ${self.name} triggered SOS — needs help!`;
+  const [msg] = await db
+    .insert(messagesTable)
+    .values({
+      tripId: trip.id,
+      senderMemberId: self.id,
+      recipientMemberId: null,
+      body: text,
+      kind: "sos",
     })
     .returning();
   const byId = new Map(roster.map((m) => [m.id, m]));

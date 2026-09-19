@@ -226,6 +226,8 @@ No mapping API key is required for the current MVP implementation.
 
 The server stores the latest and previous location fix per member rather than an unlimited location history. This supports current status and movement detection while reducing unnecessary retention of sensitive travel data.
 
+A member may opt in, per trip, to breadcrumb recording for post-trip route replay (off by default). Only for members who opt in, each location fix is additionally appended to a history table; these rows are purged no later than 7 days after the trip ends. This is a deliberate, bounded exception to the latest/previous-fix-only default above, not a change to it — non-opted-in members are unaffected.
+
 Trip and member data must always be scoped to the authenticated user’s membership and role. Client-supplied trip IDs, member IDs, and roles are not trusted without server-side authorization.
 
 ## 5. API and lifecycle plan
