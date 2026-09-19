@@ -25,6 +25,8 @@ import { useUnread } from '@/lib/useUnread';
 import { Avatar } from '@/components/UI';
 import { fmtClock } from '@/lib/format';
 
+const QUICK_REPLIES = ["I'm stopping", 'Catch up', 'Wrong turn', 'On my way'];
+
 export default function Messages() {
   const c = useColors();
   const insets = useScreenInsets();
@@ -66,14 +68,19 @@ export default function Messages() {
     return [...filtered].reverse();
   }, [messages.data, recipientId, me?.memberId]);
 
-  const send = () => {
-    const body = text.trim();
+  const sendBody = (body: string) => {
     if (!body || ended) return;
-    setText('');
     sendMessage.mutate(
       { tripId, data: { body, recipientMemberId: recipientId } },
       { onSettled: () => messages.refetch() },
     );
+  };
+
+  const send = () => {
+    const body = text.trim();
+    if (!body) return;
+    setText('');
+    sendBody(body);
     inputRef.current?.focus();
   };
 
@@ -224,6 +231,27 @@ export default function Messages() {
         }
       />
 
+      {/* Quick replies */}
+      {!ended ? (
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={QUICK_REPLIES}
+          keyExtractor={(t) => t}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 8, gap: 8 }}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => sendBody(item)}
+              style={[styles.quickReplyChip, { borderColor: c.border, backgroundColor: c.card }]}
+            >
+              <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 13, color: c.foreground }}>
+                {item}
+              </Text>
+            </Pressable>
+          )}
+        />
+      ) : null}
+
       {/* Composer */}
       <View
         style={{
@@ -297,5 +325,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
+  },
+  quickReplyChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
 });

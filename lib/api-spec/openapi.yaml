@@ -423,6 +423,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /trips/{tripId}/pitstops:
+    get:
+      operationId: listPitstops
+      tags: [tracking]
+      summary: List all pitstops for a trip, most recent first (includes cancelled)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Pitstop history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pitstop"
   /trips/{tripId}/pitstop/respond:
     post:
       operationId: respondToPitstop
@@ -968,7 +984,7 @@ components:
           enum: [on_my_way, already_there]
     Pitstop:
       type: object
-      required: [id, tripId, droppedByMemberId, droppedByName, lat, lng, responses, createdAt]
+      required: [id, tripId, droppedByMemberId, droppedByName, lat, lng, status, responses, createdAt]
       properties:
         id:
           type: number
@@ -984,6 +1000,9 @@ components:
           type: number
         label:
           type: ["string", "null"]
+        status:
+          type: string
+          enum: [active, cancelled]
         responses:
           type: array
           items:

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -263,6 +263,29 @@ export default function Tracking() {
   const isViewerLeader = me?.role === 'leader';
   const pitstop = state.data?.pitstop ?? null;
 
+  // Proactive off-route nudge: fire a dismissible banner the moment a member
+  // transitions into off-route, instead of only showing it as a passive label.
+  const [offRouteAlerts, setOffRouteAlerts] = useState<{ id: string; name: string }[]>([]);
+  const prevOffRouteRef = useRef<Map<number, boolean> | null>(null);
+  useEffect(() => {
+    const members = state.data?.members;
+    if (!members) return;
+    const prev = prevOffRouteRef.current;
+    const next = new Map<number, boolean>();
+    for (const m of members) {
+      next.set(m.memberId, m.offRoute);
+      const wasOffRoute = prev?.get(m.memberId) ?? false;
+      if (prev && !m.isSelf && m.offRoute && !wasOffRoute) {
+        const alertId = `${m.memberId}-${Date.now()}`;
+        setOffRouteAlerts((cur) => [...cur, { id: alertId, name: m.name }]);
+        setTimeout(() => {
+          setOffRouteAlerts((cur) => cur.filter((a) => a.id !== alertId));
+        }, 15000);
+      }
+    }
+    prevOffRouteRef.current = next;
+  }, [state.data?.members]);
+
   const refresh = () => {
     qc.invalidateQueries({ queryKey: getGetTripStateQueryKey(tripId) });
     qc.invalidateQueries({ queryKey: getListTripsQueryKey() });
@@ -502,6 +525,15 @@ export default function Tracking() {
             onAction={() => router.push(`/trip/${tripId}`)}
           />
         ) : null}
+        {offRouteAlerts.map((a) => (
+          <Banner
+            key={a.id}
+            tone="warning"
+            text={`${a.name} appears to have taken a different route.`}
+            actionTitle="Dismiss"
+            onAction={() => setOffRouteAlerts((cur) => cur.filter((x) => x.id !== a.id))}
+          />
+        ))}
         {pitstop && isActive ? (
           <PitstopBanner
             pitstop={pitstop}

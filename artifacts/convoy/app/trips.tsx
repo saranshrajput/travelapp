@@ -64,9 +64,11 @@ function TripCard({ s }: { s: TripSummary }) {
   );
 }
 
-const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
-  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`
-  : '/api';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL
+  ? `${process.env.EXPO_PUBLIC_API_URL}/api`
+  : process.env.EXPO_PUBLIC_DOMAIN
+    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`
+    : '/api';
 
 async function createDemoTrip(): Promise<number> {
   const token = getSessionToken();

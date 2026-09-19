@@ -30,6 +30,7 @@ export * from './pitstopMemberResponse';
 export * from './pitstopMemberResponseResponse';
 export * from './pitstopRespondInput';
 export * from './pitstopRespondInputResponse';
+export * from './pitstopStatus';
 export * from './place';
 export * from './reverseGeocodeParams';
 export * from './routeOption';

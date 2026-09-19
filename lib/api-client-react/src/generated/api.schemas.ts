@@ -290,6 +290,14 @@ export interface TripEndSummary {
   completedNames: string[];
 }
 
+export type PitstopStatus = typeof PitstopStatus[keyof typeof PitstopStatus];
+
+
+export const PitstopStatus = {
+  active: 'active',
+  cancelled: 'cancelled',
+} as const;
+
 export type PitstopMemberResponseResponse = typeof PitstopMemberResponseResponse[keyof typeof PitstopMemberResponseResponse];
 
 
@@ -315,6 +323,7 @@ export interface Pitstop {
   lng: number;
   /** @nullable */
   label?: string | null;
+  status: PitstopStatus;
   responses: PitstopMemberResponse[];
   createdAt: string;
 }

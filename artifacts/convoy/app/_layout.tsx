@@ -16,7 +16,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { setAuthTokenGetter, setBaseUrl } from '@workspace/api-client-react';
 import { getSessionToken, SessionProvider } from '@/lib/session';
 
-setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+// EXPO_PUBLIC_API_URL is an escape hatch for local dev, where there's no
+// Replit domain to derive an https origin from (e.g. a plain http://localhost API).
+setBaseUrl(process.env.EXPO_PUBLIC_API_URL ?? `https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 setAuthTokenGetter(() => getSessionToken());
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.

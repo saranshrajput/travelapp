@@ -1768,6 +1768,83 @@ export const useCancelPitstop = <TError = ErrorType<ErrorResponse>,
       return useMutation(getCancelPitstopMutationOptions(options));
     }
 
+export const getListPitstopsUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/pitstops`
+}
+
+/**
+ * @summary List all pitstops for a trip, most recent first (includes cancelled)
+ */
+export const listPitstops = async (tripId: number, options?: Parameters<typeof customFetch>[1]): Promise<Pitstop[]> => {
+
+  return customFetch<Pitstop[]>(getListPitstopsUrl(tripId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPitstopsQueryKey = (tripId: number,) => {
+    return [
+    `/api/trips/${tripId}/pitstops`
+    ] as const;
+    }
+
+
+export const getListPitstopsQueryOptions = <TData = Awaited<ReturnType<typeof listPitstops>>, TError = ErrorType<unknown>>(tripId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPitstops>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPitstopsQueryKey(tripId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPitstops>>> = ({ signal }) => listPitstops(tripId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: tripId !== null && tripId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPitstops>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPitstopsQueryResult = NonNullable<Awaited<ReturnType<typeof listPitstops>>>
+export type ListPitstopsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all pitstops for a trip, most recent first (includes cancelled)
+ */
+
+export function useListPitstops<TData = Awaited<ReturnType<typeof listPitstops>>, TError = ErrorType<unknown>>(
+ tripId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPitstops>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPitstopsQueryOptions(tripId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getRespondToPitstopUrl = (tripId: number,) => {
 
 

@@ -198,6 +198,7 @@ router.get("/trips/:tripId/state", async (req, res): Promise<void> => {
       lat: activePitstop.lat,
       lng: activePitstop.lng,
       label: activePitstop.label ?? null,
+      status: activePitstop.status,
       responses: responses.map((r) => {
         const member = byId.get(r.memberId);
         return {

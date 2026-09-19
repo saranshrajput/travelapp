@@ -584,6 +584,7 @@ export const GetTripStateResponse = zod.object({
   "lat": zod.number(),
   "lng": zod.number(),
   "label": zod.string().nullish(),
+  "status": zod.enum(['active', 'cancelled']),
   "responses": zod.array(zod.object({
   "memberId": zod.number(),
   "name": zod.string(),
@@ -663,6 +664,7 @@ export const GetActivePitstopResponse = zod.object({
   "lat": zod.number(),
   "lng": zod.number(),
   "label": zod.string().nullish(),
+  "status": zod.enum(['active', 'cancelled']),
   "responses": zod.array(zod.object({
   "memberId": zod.number(),
   "name": zod.string(),
@@ -695,6 +697,7 @@ export const DropPitstopResponse = zod.object({
   "lat": zod.number(),
   "lng": zod.number(),
   "label": zod.string().nullish(),
+  "status": zod.enum(['active', 'cancelled']),
   "responses": zod.array(zod.object({
   "memberId": zod.number(),
   "name": zod.string(),
@@ -716,6 +719,34 @@ export const CancelPitstopParams = zod.object({
 export const CancelPitstopResponse = zod.object({
   "ok": zod.boolean()
 })
+
+
+/**
+ * @summary List all pitstops for a trip, most recent first (includes cancelled)
+ */
+export const ListPitstopsParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const ListPitstopsResponseItem = zod.object({
+  "id": zod.number(),
+  "tripId": zod.number(),
+  "droppedByMemberId": zod.number(),
+  "droppedByName": zod.string(),
+  "lat": zod.number(),
+  "lng": zod.number(),
+  "label": zod.string().nullish(),
+  "status": zod.enum(['active', 'cancelled']),
+  "responses": zod.array(zod.object({
+  "memberId": zod.number(),
+  "name": zod.string(),
+  "color": zod.string(),
+  "initial": zod.string(),
+  "response": zod.enum(['on_my_way', 'already_there'])
+})),
+  "createdAt": zod.string()
+})
+export const ListPitstopsResponse = zod.array(ListPitstopsResponseItem)
 
 
 /**

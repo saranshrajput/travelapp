@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PitstopMemberResponse } from './pitstopMemberResponse';
+import type { PitstopStatus } from './pitstopStatus';
 
 export interface Pitstop {
   id: number;
@@ -16,6 +17,7 @@ export interface Pitstop {
   lng: number;
   /** @nullable */
   label?: string | null;
+  status: PitstopStatus;
   responses: PitstopMemberResponse[];
   createdAt: string;
 }

@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import {
   db,
   tripsTable,
   tripMembersTable,
   pitstopsTable,
   pitstopResponsesTable,
+  messagesTable,
   type TripMemberRow,
 } from "@workspace/db";
 import {
@@ -16,6 +17,8 @@ import {
   CancelPitstopResponse,
   GetActivePitstopParams,
   GetActivePitstopResponse,
+  ListPitstopsParams,
+  ListPitstopsResponse,
   RespondToPitstopParams,
   RespondToPitstopBody,
   RespondToPitstopResponse,
@@ -28,6 +31,7 @@ const router: IRouter = Router();
 router.use(
   [
     "/trips/:tripId/pitstop",
+    "/trips/:tripId/pitstops",
     "/trips/:tripId/pitstop/respond",
   ],
   authRequired,
@@ -62,6 +66,7 @@ async function pitstopToApi(
     lat: pitstop.lat,
     lng: pitstop.lng,
     label: pitstop.label ?? null,
+    status: pitstop.status as "active" | "cancelled",
     responses: responses.map((r) => {
       const member = byId.get(r.memberId);
       return {
@@ -161,6 +166,13 @@ router.post("/trips/:tripId/pitstop", async (req, res): Promise<void> => {
     })
     .returning();
 
+  await db.insert(messagesTable).values({
+    tripId: params.data.tripId,
+    senderMemberId: self.id,
+    recipientMemberId: null,
+    body: `📍 ${self.name} dropped a pitstop${body.data.label ? `: ${body.data.label}` : ""}`,
+  });
+
   const byId = new Map(roster.map((m) => [m.id, m]));
   res
     .status(201)
@@ -197,7 +209,39 @@ router.delete("/trips/:tripId/pitstop", async (req, res): Promise<void> => {
     .set({ status: "cancelled" })
     .where(eq(pitstopsTable.id, pitstop.id));
 
+  await db.insert(messagesTable).values({
+    tripId: params.data.tripId,
+    senderMemberId: self.id,
+    recipientMemberId: null,
+    body: `${self.name} cancelled the pitstop${pitstop.label ? `: ${pitstop.label}` : ""}`,
+  });
+
   res.json(CancelPitstopResponse.parse({ ok: true }));
+});
+
+router.get("/trips/:tripId/pitstops", async (req, res): Promise<void> => {
+  const user = currentUser(res);
+  const params = ListPitstopsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const roster = await getRoster(params.data.tripId);
+  const self = findSelf(roster, user.id);
+  if (!self || self.joinStatus !== "joined") {
+    res.status(403).json({ error: "You are not a member of this trip" });
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(pitstopsTable)
+    .where(eq(pitstopsTable.tripId, params.data.tripId))
+    .orderBy(desc(pitstopsTable.createdAt));
+
+  const byId = new Map(roster.map((m) => [m.id, m]));
+  const pitstops = await Promise.all(rows.map((row) => pitstopToApi(row, byId)));
+  res.json(ListPitstopsResponse.parse(pitstops));
 });
 
 router.post(
