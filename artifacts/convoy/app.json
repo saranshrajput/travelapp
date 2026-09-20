@@ -44,7 +44,7 @@
     },
     "owner": "saranshrajput",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "sdkVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/15967016-9b31-42a1-b4e6-4abe82c4b71c"
