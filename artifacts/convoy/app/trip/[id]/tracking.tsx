@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetTripHistoryQueryKey,
@@ -21,6 +22,7 @@ import {
   getListMessagesQueryKey,
   getListSafeZonesQueryKey,
   getListTripsQueryKey,
+  getSearchPlacesQueryKey,
   useCreateSafeZone,
   useDropPitstop,
   useCancelPitstop,
@@ -35,10 +37,12 @@ import {
   usePromoteMember,
   useRemoveMember,
   useRemoveSafeZone,
+  useSearchPlaces,
   useSetHistoryOptIn,
   useTriggerSos,
   type MemberState,
   type Pitstop,
+  type Place,
   type SafeZone,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
@@ -165,6 +169,19 @@ function PitstopBanner({
   );
 }
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setDebounced(value), delay);
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [value, delay]);
+  return debounced;
+}
+
 function DropPitstopModal({
   visible,
   onClose,
@@ -173,56 +190,119 @@ function DropPitstopModal({
 }: {
   visible: boolean;
   onClose: () => void;
-  onDrop: (label: string) => void;
+  onDrop: (label: string, point: { lat: number; lng: number } | null) => void;
   loading: boolean;
 }) {
   const c = useColors();
-  const [label, setLabel] = useState('');
+  const [text, setText] = useState('');
+  const [selected, setSelected] = useState<{ lat: number; lng: number; label: string } | null>(null);
+  const debouncedText = useDebounce(text.trim(), 400);
+  const search = useSearchPlaces(
+    { q: debouncedText },
+    {
+      query: {
+        queryKey: getSearchPlacesQueryKey({ q: debouncedText }),
+        enabled: !selected && debouncedText.length >= 3,
+        staleTime: 60000,
+      },
+    },
+  );
+  const showSuggestions =
+    !selected && text.trim() === debouncedText && !!search.data && search.data.length > 0;
+
+  const handleClose = () => {
+    setText('');
+    setSelected(null);
+    onClose();
+  };
 
   const handleDrop = () => {
-    onDrop(label.trim());
-    setLabel('');
+    onDrop(selected?.label ?? text.trim(), selected ? { lat: selected.lat, lng: selected.lng } : null);
+    setText('');
+    setSelected(null);
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose} />
-      <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-          <Feather name="coffee" size={18} color="#F59E0B" />
-          <Text
-            style={{
-              fontFamily: 'Inter_700Bold',
-              fontSize: 17,
-              color: c.foreground,
-              marginLeft: 8,
-              flex: 1,
-            }}
-          >
-            Drop Pitstop
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={styles.modalOverlay} onPress={handleClose} />
+        <View style={[styles.modalSheet, { backgroundColor: c.background }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+            <Feather name="coffee" size={18} color="#F59E0B" />
+            <Text
+              style={{
+                fontFamily: 'Inter_700Bold',
+                fontSize: 17,
+                color: c.foreground,
+                marginLeft: 8,
+                flex: 1,
+              }}
+            >
+              Drop Pitstop
+            </Text>
+            <Pressable onPress={handleClose} hitSlop={8}>
+              <Feather name="x" size={20} color={c.mutedForeground} />
+            </Pressable>
+          </View>
+          <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13.5, color: c.mutedForeground, marginBottom: 12 }}>
+            Search for a place, or leave blank to pin your current location.
           </Text>
-          <Pressable onPress={onClose} hitSlop={8}>
-            <Feather name="x" size={20} color={c.mutedForeground} />
-          </Pressable>
+          <TextInput
+            placeholder="Search a place (e.g. Dhaba, Petrol pump…)"
+            placeholderTextColor={c.mutedForeground}
+            value={text}
+            onChangeText={(t) => {
+              setText(t);
+              setSelected(null);
+            }}
+            style={[
+              styles.input,
+              {
+                backgroundColor: c.card,
+                color: c.foreground,
+                borderColor: c.border,
+                marginBottom: showSuggestions ? 8 : 16,
+              },
+            ]}
+            maxLength={60}
+            returnKeyType="done"
+            onSubmitEditing={handleDrop}
+          />
+          {showSuggestions ? (
+            <Card style={{ padding: 4, gap: 0, marginBottom: 16 }}>
+              {search.data!.slice(0, 5).map((p: Place, i: number) => (
+                <Pressable
+                  key={`${p.lat}-${p.lng}-${i}`}
+                  onPress={() => {
+                    setSelected({ lat: p.lat, lng: p.lng, label: p.label });
+                    setText(p.label);
+                  }}
+                  style={({ pressed }) => ({
+                    padding: 10,
+                    borderRadius: 8,
+                    backgroundColor: pressed ? c.muted : 'transparent',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                  })}
+                >
+                  <Feather name="map-pin" size={14} color={c.mutedForeground} />
+                  <Text
+                    numberOfLines={2}
+                    style={{ flex: 1, fontFamily: 'Inter_500Medium', fontSize: 13.5, color: c.foreground }}
+                  >
+                    {p.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </Card>
+          ) : null}
+          <Btn
+            title={loading ? 'Dropping…' : selected ? 'Drop pitstop at this place' : 'Drop pitstop at current location'}
+            onPress={handleDrop}
+          />
         </View>
-        <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13.5, color: c.mutedForeground, marginBottom: 12 }}>
-          Pins a stop at your current location. The group will see it on the map.
-        </Text>
-        <TextInput
-          placeholder="Label (optional, e.g. Dhaba, Petrol pump…)"
-          placeholderTextColor={c.mutedForeground}
-          value={label}
-          onChangeText={setLabel}
-          style={[
-            styles.input,
-            { backgroundColor: c.card, color: c.foreground, borderColor: c.border },
-          ]}
-          maxLength={60}
-          returnKeyType="done"
-          onSubmitEditing={handleDrop}
-        />
-        <Btn title={loading ? 'Dropping…' : 'Drop pitstop here'} onPress={handleDrop} />
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -468,10 +548,11 @@ export default function Tracking() {
     setHistoryOptIn.mutate({ tripId, data: { enabled: next } }, { onSuccess: refresh });
   };
 
-  const handleDropPitstop = (label: string) => {
-    // Use leader's current location or trip start as fallback
-    const lat = me?.lat ?? trip?.startLat ?? 0;
-    const lng = me?.lng ?? trip?.startLng ?? 0;
+  const handleDropPitstop = (label: string, point: { lat: number; lng: number } | null) => {
+    // Use the searched place if one was picked, otherwise the leader's current
+    // location, falling back to the trip start.
+    const lat = point?.lat ?? me?.lat ?? trip?.startLat ?? 0;
+    const lng = point?.lng ?? me?.lng ?? trip?.startLng ?? 0;
     dropPitstop.mutate(
       { tripId, data: { lat, lng, ...(label ? { label } : {}) } },
       {
