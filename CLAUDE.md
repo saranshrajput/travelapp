@@ -73,6 +73,19 @@ Use `pnpm`, not `npm`/`yarn` — the root `preinstall` script deletes `package-l
 - A published EAS Update (`eas update --branch preview`) lets anyone with the Expo Go app run the app live without a native build or an Apple Developer account — but EAS projects default to requiring the viewer be signed into Expo Go with an account that has project access (a 403 "requires authentication" otherwise); there's currently no reliable self-service "make public" toggle in the EAS dashboard.
 - A real installable/signed iOS build (not via Expo Go) needs EAS Build plus an Apple Developer Program membership ($99/year) to sign it for a physical device — there is no free iOS equivalent to Android's APK sideloading.
 
+#### Deployment workflow — what to run after a change
+
+Render auto-deploys on every push to the branch it's watching, and Expo Go only updates when you explicitly publish — there's no single "deploy everything" command. Pick based on what changed:
+
+| Changed | Steps |
+| --- | --- |
+| Frontend only (`artifacts/convoy/**`) | `cd artifacts/convoy && EXPO_PUBLIC_API_URL=<render-url> npx eas-cli update --branch preview --environment preview --non-interactive -m "..."` |
+| Backend only (`artifacts/api-server/**`) | `git push origin <branch>` — Render redeploys automatically, no Expo publish needed |
+| DB schema (`lib/db/src/schema/convoy.ts`) | `cd lib/db && pnpm exec drizzle-kit push --schema ./src/schema/index.ts --dialect postgresql --url "$DATABASE_URL"`, then push backend code changes together (schema and server code should land in the same deploy) |
+| API contract (`lib/api-spec/openapi.yaml`) | `codegen` → update backend routes → update frontend hook usage → `pnpm run typecheck` → push backend → publish frontend update (all of the above, in order) |
+
+Always run `pnpm run typecheck` before pushing — Render has no pre-deploy typecheck gate of its own, so a broken build only surfaces as a failed Render deploy after the fact. `eas-cli update --non-interactive` additionally requires `--environment <profile>` (matching an `eas.json` build profile name) or it refuses to run.
+
 ### API contract flow (OpenAPI → generated code)
 
 `lib/api-spec/openapi.yaml` is the single source of truth for the API. Running its `codegen` script (Orval) regenerates:
