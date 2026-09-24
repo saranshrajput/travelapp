@@ -49,6 +49,7 @@ import { useColors } from '@/hooks/useColors';
 import { useScreenInsets } from '@/lib/insets';
 import { useLocationSharing } from '@/lib/useLocationSharing';
 import { useUnread } from '@/lib/useUnread';
+import { useDriveMode } from '@/lib/useDriveMode';
 import TripMap from '@/components/TripMap';
 import PermissionExplainer from '@/components/PermissionExplainer';
 import { MemberRow, MemberSheet } from '@/components/members';
@@ -436,6 +437,7 @@ export default function Tracking() {
   });
   const me = state.data?.members.find((m) => m.isSelf);
   const { unreadCount } = useUnread(tripId, messages.data, me?.memberId);
+  const driveMode = useDriveMode();
 
   const endTrip = useEndTrip();
   const leaveTrip = useLeaveTrip();
@@ -468,27 +470,44 @@ export default function Tracking() {
   const isViewerLeader = me?.role === 'leader';
   const pitstop = state.data?.pitstop ?? null;
 
-  // Proactive off-route nudge: fire a dismissible banner the moment a member
-  // transitions into off-route, instead of only showing it as a passive label.
+  // Proactive off-route nudge: fire a dismissible banner (and, in Drive Mode,
+  // a spoken alert) the moment a member transitions into off-route or a
+  // notable status change, instead of only showing it as a passive label.
   const [offRouteAlerts, setOffRouteAlerts] = useState<{ id: string; name: string }[]>([]);
-  const prevOffRouteRef = useRef<Map<number, boolean> | null>(null);
+  const prevMemberSnapshotRef = useRef<Map<number, { status: string; offRoute: boolean }> | null>(
+    null,
+  );
   useEffect(() => {
     const members = state.data?.members;
     if (!members) return;
-    const prev = prevOffRouteRef.current;
-    const next = new Map<number, boolean>();
+    const prev = prevMemberSnapshotRef.current;
+    const next = new Map<number, { status: string; offRoute: boolean }>();
     for (const m of members) {
-      next.set(m.memberId, m.offRoute);
-      const wasOffRoute = prev?.get(m.memberId) ?? false;
-      if (prev && !m.isSelf && m.offRoute && !wasOffRoute) {
+      const snapshot = { status: m.status, offRoute: m.offRoute };
+      next.set(m.memberId, snapshot);
+      const prevSnapshot = prev?.get(m.memberId);
+      if (!prev || m.isSelf) continue;
+
+      if (m.offRoute && !(prevSnapshot?.offRoute ?? false)) {
         const alertId = `${m.memberId}-${Date.now()}`;
         setOffRouteAlerts((cur) => [...cur, { id: alertId, name: m.name }]);
         setTimeout(() => {
           setOffRouteAlerts((cur) => cur.filter((a) => a.id !== alertId));
         }, 15000);
+        driveMode.speak(`${m.name} appears to have taken a different route.`);
+      }
+
+      const prevStatus = prevSnapshot?.status;
+      if (prevStatus === 'moving' && m.status === 'stopped') {
+        driveMode.speak(`${m.name} has stopped.`);
+      } else if ((prevStatus === 'moving' || prevStatus === 'stopped') && m.status === 'not_updating') {
+        driveMode.speak(`${m.name}'s location isn't updating.`);
       }
     }
-    prevOffRouteRef.current = next;
+    prevMemberSnapshotRef.current = next;
+    // driveMode.speak is stable across renders (see useDriveMode); omitting it
+    // keeps this effect keyed purely on the polled data it diffs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.data?.members]);
 
   // Foreground-only safe-zone enter/exit nudge. Piggybacks on the existing
@@ -518,10 +537,12 @@ export default function Tracking() {
           setTimeout(() => {
             setZoneAlerts((cur) => cur.filter((a) => a.id !== alertId));
           }, 15000);
+          driveMode.speak(text);
         }
       }
     }
     prevInZoneRef.current = next;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.data?.members, safeZones.data]);
 
   // Persistent SOS banner: shows whenever the server reports an SOS from the
@@ -529,6 +550,35 @@ export default function Tracking() {
   // dismissed. In-app broadcast only — no SMS to anyone outside the trip.
   const activeSos = state.data?.activeSos ?? null;
   const [dismissedSosId, setDismissedSosId] = useState<number | null>(null);
+
+  // Drive Mode: speak new messages aloud, independent of the unread-badge
+  // last-read state (opening the messages screen shouldn't affect this).
+  const lastAnnouncedMsgIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const msgs = messages.data;
+    if (!msgs || msgs.length === 0) return;
+    const prevId = lastAnnouncedMsgIdRef.current;
+    if (prevId != null) {
+      for (const m of msgs) {
+        if (m.id > prevId && m.senderMemberId !== me?.memberId && m.kind !== 'sos') {
+          driveMode.speak(`${m.senderName}: ${m.body}`);
+        }
+      }
+    }
+    lastAnnouncedMsgIdRef.current = Math.max(...msgs.map((m) => m.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.data, me?.memberId]);
+
+  // Drive Mode: SOS is always spoken, bypassing the Drive Mode toggle itself
+  // (it's already always shown visually regardless of mode — see the banner
+  // below), and interrupts anything currently queued.
+  const lastAnnouncedSosIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!activeSos || lastAnnouncedSosIdRef.current === activeSos.id) return;
+    lastAnnouncedSosIdRef.current = activeSos.id;
+    driveMode.speakUrgent(`S O S from ${activeSos.name}. They need help.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSos]);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: getGetTripStateQueryKey(tripId) });
@@ -739,13 +789,20 @@ export default function Tracking() {
             ) : null}
           </View>
         </Pressable>
+        <Pressable onPress={() => driveMode.setEnabled(!driveMode.enabled)} hitSlop={8}>
+          <Feather
+            name={driveMode.enabled ? 'volume-2' : 'volume-x'}
+            size={22}
+            color={driveMode.enabled ? c.lime : c.inkForeground}
+          />
+        </Pressable>
         <Pressable onPress={menu} hitSlop={8}>
           <Feather name="more-vertical" size={22} color={c.inkForeground} />
         </Pressable>
       </View>
 
       {/* Map */}
-      <View style={{ flex: 1.35 }}>
+      <View style={{ flex: driveMode.enabled ? 2.2 : 1.35 }}>
         <TripMap
           route={detail.data?.routeGeometry ?? []}
           start={{ lat: trip.startLat, lng: trip.startLng }}
@@ -756,6 +813,7 @@ export default function Tracking() {
           safeZones={safeZones.data ?? []}
           history={isEnded ? (history.data ?? []) : []}
           onMemberPress={(m) => setSelected(m)}
+          simplified={driveMode.enabled}
         />
         {isEnded && summary ? (
           <View style={styles.summaryWrap} pointerEvents="box-none">
@@ -789,8 +847,8 @@ export default function Tracking() {
             </Card>
           </View>
         ) : null}
-        {/* Drop Pitstop FAB (leader only, active trip, no active pitstop) */}
-        {isViewerLeader && isActive && !pitstop ? (
+        {/* Drop Pitstop FAB (leader only, active trip, no active pitstop) — hidden in Drive Mode, low priority while driving */}
+        {isViewerLeader && isActive && !pitstop && !driveMode.enabled ? (
           <Pressable
             onPress={() => setShowDropPitstop(true)}
             style={[styles.pitstopFab, { backgroundColor: '#F59E0B', borderRadius: c.radius }]}
@@ -801,14 +859,28 @@ export default function Tracking() {
             </Text>
           </Pressable>
         ) : null}
-        {/* SOS FAB — any member, active trip only */}
+        {/* SOS FAB — any member, active trip only. Enlarged in Drive Mode,
+            since it's the one interactive element that should stay easy to
+            hit without close attention. */}
         {isActive ? (
           <Pressable
             onPress={handleSos}
-            style={[styles.sosFab, { backgroundColor: '#D93025', borderRadius: c.radius }]}
+            style={[
+              styles.sosFab,
+              { backgroundColor: '#D93025', borderRadius: c.radius },
+              driveMode.enabled ? { bottom: 14, paddingHorizontal: 20, paddingVertical: 16 } : null,
+            ]}
           >
-            <Feather name="alert-triangle" size={15} color="#fff" />
-            <Text style={{ color: '#fff', fontFamily: 'Inter_700Bold', fontSize: 13 }}>SOS</Text>
+            <Feather name="alert-triangle" size={driveMode.enabled ? 22 : 15} color="#fff" />
+            <Text
+              style={{
+                color: '#fff',
+                fontFamily: 'Inter_700Bold',
+                fontSize: driveMode.enabled ? 17 : 13,
+              }}
+            >
+              SOS
+            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -885,21 +957,30 @@ export default function Tracking() {
         ) : null}
       </View>
 
-      {/* Member list, ordered front-to-back */}
-      <View style={{ flex: 1 }}>
-        <FlatList
-          data={sortedMembers}
-          keyExtractor={(m) => String(m.memberId)}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 8, paddingTop: 6 }}
-          renderItem={({ item }) => (
-            <MemberRow
-              m={item}
-              furthestBack={item.memberId === furthestBackId}
-              onPress={() => setSelected(item)}
-            />
-          )}
-        />
-      </View>
+      {/* Member list, ordered front-to-back — hidden in Drive Mode in favor
+          of the larger map and a single glanceable status line. */}
+      {driveMode.enabled ? (
+        <View style={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 16, paddingTop: 4 }}>
+          <Text style={{ fontFamily: 'Inter_700Bold', fontSize: 22, color: c.foreground }}>
+            {isEnded ? 'Trip ended' : `${state.data.sharingCount} of ${state.data.joinedCount} sharing`}
+          </Text>
+        </View>
+      ) : (
+        <View style={{ flex: 1 }}>
+          <FlatList
+            data={sortedMembers}
+            keyExtractor={(m) => String(m.memberId)}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 8, paddingTop: 6 }}
+            renderItem={({ item }) => (
+              <MemberRow
+                m={item}
+                furthestBack={item.memberId === furthestBackId}
+                onPress={() => setSelected(item)}
+              />
+            )}
+          />
+        </View>
+      )}
 
       {/* Permission explainer BEFORE the OS prompt */}
       {showExplainer ? (
