@@ -29,6 +29,7 @@ export default function TripMap({
   pitstop,
   safeZones = [],
   history = [],
+  simplified = false,
   children,
 }: {
   route: { lat: number; lng: number }[];
@@ -40,6 +41,8 @@ export default function TripMap({
   pitstop?: Pitstop | null;
   safeZones?: SafeZone[];
   history?: MemberHistory[];
+  /** Drive Mode: keep the map auto-framed/centered, ignoring manual pans. */
+  simplified?: boolean;
   children?: React.ReactNode;
 }) {
   const c = useColors();
@@ -100,7 +103,7 @@ export default function TripMap({
         ref={mapRef as React.Ref<never>}
         style={StyleSheet.absoluteFill}
         initialRegion={initialRegion}
-        onPanDrag={() => setAutoFrame(false)}
+        onPanDrag={() => !simplified && setAutoFrame(false)}
         toolbarEnabled={false}
         showsCompass={false}
         showsMyLocationButton={false}
