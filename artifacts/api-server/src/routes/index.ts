@@ -7,6 +7,7 @@ import trackingRouter from "./tracking";
 import messagesRouter from "./messages";
 import pitstopsRouter from "./pitstops";
 import safeZonesRouter from "./safeZones";
+import itineraryRouter from "./itinerary";
 import demoRouter from "./demo";
 
 const router: IRouter = Router();
@@ -18,6 +19,7 @@ router.use(trackingRouter);
 router.use(messagesRouter);
 router.use(pitstopsRouter);
 router.use(safeZonesRouter);
+router.use(itineraryRouter);
 router.use(demoRouter);
 router.use(tripsRouter);
 

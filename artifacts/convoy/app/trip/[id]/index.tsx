@@ -228,6 +228,21 @@ export default function TripLobby() {
           </Text>
         </Card>
 
+        <Pressable onPress={() => router.push(`/trip/${tripId}/itinerary`)}>
+          <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Feather name="calendar" size={18} color={c.foreground} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 15, color: c.foreground }}>
+                Itinerary
+              </Text>
+              <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: c.mutedForeground }}>
+                Hotel stays, activities and bookings
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={c.mutedForeground} />
+          </Card>
+        </Pressable>
+
         <Card style={{ gap: 10, backgroundColor: c.ink, borderColor: c.ink }}>
           <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 13, color: c.inkMuted }}>
             Share this code to invite people

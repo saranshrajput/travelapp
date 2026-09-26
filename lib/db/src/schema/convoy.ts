@@ -184,6 +184,38 @@ export const safeZonesTable = pgTable("safe_zones", {
     .defaultNow(),
 });
 
+// Group itinerary: hotel stays, activities, bookings etc. that any joined
+// member can add. Soft-deleted via status so removals don't break history.
+export const itineraryItemsTable = pgTable("itinerary_items", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id")
+    .notNull()
+    .references(() => tripsTable.id),
+  createdByMemberId: integer("created_by_member_id")
+    .notNull()
+    .references(() => tripMembersTable.id),
+  kind: text("kind").notNull().default("stay"), // stay | activity | transport | food | other
+  title: text("title").notNull(),
+  address: text("address"),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  endAt: timestamp("end_at", { withTimezone: true }),
+  confirmationCode: text("confirmation_code"),
+  notes: text("notes"),
+  status: text("status").notNull().default("active"), // active | removed
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const insertItineraryItemSchema = createInsertSchema(
+  itineraryItemsTable,
+).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertItineraryItem = z.infer<typeof insertItineraryItemSchema>;
+export type ItineraryItemRow = typeof itineraryItemsTable.$inferSelect;
+
 export const insertSafeZoneSchema = createInsertSchema(safeZonesTable).omit({
   id: true,
   createdAt: true,

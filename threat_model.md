@@ -42,6 +42,8 @@ Trip and member data must be scoped to the requesting user's trips. List/read en
 
 Breadcrumb replay (`location_history`) is opt-in per member per trip and is a bounded exception to the latest/previous-fix-only retention model (see `CONVOY_PRD.md` §4). `GET /trips/:tripId/history` only returns points for members who opted in and only to other members of the same trip; rows are lazily purged 7 days after the trip ends. SOS broadcasts (`kind: "sos"` messages) are visible to the whole trip by design (not a disclosure risk) and are never sent outside the app — there is no SMS/third-party escalation path.
 
+Itinerary items (`itinerary_items` — hotel stays, activities, bookings, including optional confirmation numbers and notes) are visible only to joined members of the same trip via `GET /trips/:tripId/itinerary`. Any joined member may add items; only the item's creator or a trip leader may edit/remove it (enforced server-side from the caller's roster membership, never from client-supplied IDs). Items are looked up scoped to both `itemId` and `tripId` to prevent cross-trip IDOR, writes are rejected once the trip has ended, and text fields are length-capped.
+
 ### Denial of Service
 
 The static server reads files synchronously (`fs.readFileSync`); large files or high request volume could block the event loop. No rate limiting is currently visible on the static server. The API server should rate-limit auth and mutation endpoints.

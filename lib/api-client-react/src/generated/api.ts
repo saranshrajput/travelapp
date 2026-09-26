@@ -24,6 +24,8 @@ import type {
   GetRouteOptionsParams,
   HealthStatus,
   HistoryOptInInput,
+  ItineraryItem,
+  ItineraryItemInput,
   JoinInput,
   JoinPreview,
   LocationFix,
@@ -2435,6 +2437,302 @@ export const useRemoveSafeZone = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getRemoveSafeZoneMutationOptions(options));
+    }
+
+export const getListItineraryUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/itinerary`
+}
+
+/**
+ * @summary List the trip itinerary (hotel stays, activities, bookings), ordered by start time
+ */
+export const listItinerary = async (tripId: number, options?: Parameters<typeof customFetch>[1]): Promise<ItineraryItem[]> => {
+
+  return customFetch<ItineraryItem[]>(getListItineraryUrl(tripId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListItineraryQueryKey = (tripId: number,) => {
+    return [
+    `/api/trips/${tripId}/itinerary`
+    ] as const;
+    }
+
+
+export const getListItineraryQueryOptions = <TData = Awaited<ReturnType<typeof listItinerary>>, TError = ErrorType<unknown>>(tripId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listItinerary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListItineraryQueryKey(tripId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listItinerary>>> = ({ signal }) => listItinerary(tripId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: tripId !== null && tripId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listItinerary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListItineraryQueryResult = NonNullable<Awaited<ReturnType<typeof listItinerary>>>
+export type ListItineraryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the trip itinerary (hotel stays, activities, bookings), ordered by start time
+ */
+
+export function useListItinerary<TData = Awaited<ReturnType<typeof listItinerary>>, TError = ErrorType<unknown>>(
+ tripId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listItinerary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListItineraryQueryOptions(tripId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateItineraryItemUrl = (tripId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/itinerary`
+}
+
+/**
+ * @summary Add an itinerary item (any joined member)
+ */
+export const createItineraryItem = async (tripId: number,
+    itineraryItemInput: ItineraryItemInput, options?: Parameters<typeof customFetch>[1]): Promise<ItineraryItem> => {
+
+  return customFetch<ItineraryItem>(getCreateItineraryItemUrl(tripId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itineraryItemInput)
+  }
+);}
+
+
+
+
+
+export const getCreateItineraryItemMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createItineraryItem>>, TError,{tripId: number;data: BodyType<ItineraryItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createItineraryItem>>, TError,{tripId: number;data: BodyType<ItineraryItemInput>}, TContext> => {
+
+const mutationKey = ['createItineraryItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createItineraryItem>>, {tripId: number;data: BodyType<ItineraryItemInput>}> = (props) => {
+          const {tripId,data} = props ?? {};
+
+          return  createItineraryItem(tripId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateItineraryItemMutationResult = NonNullable<Awaited<ReturnType<typeof createItineraryItem>>>
+    export type CreateItineraryItemMutationBody = BodyType<ItineraryItemInput>
+    export type CreateItineraryItemMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Add an itinerary item (any joined member)
+ */
+export const useCreateItineraryItem = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createItineraryItem>>, TError,{tripId: number;data: BodyType<ItineraryItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createItineraryItem>>,
+        TError,
+        {tripId: number;data: BodyType<ItineraryItemInput>},
+        TContext
+      > => {
+      return useMutation(getCreateItineraryItemMutationOptions(options));
+    }
+
+export const getUpdateItineraryItemUrl = (tripId: number,
+    itemId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/itinerary/${itemId}`
+}
+
+/**
+ * @summary Update an itinerary item (its creator or a leader)
+ */
+export const updateItineraryItem = async (tripId: number,
+    itemId: number,
+    itineraryItemInput: ItineraryItemInput, options?: Parameters<typeof customFetch>[1]): Promise<ItineraryItem> => {
+
+  return customFetch<ItineraryItem>(getUpdateItineraryItemUrl(tripId,itemId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itineraryItemInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateItineraryItemMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateItineraryItem>>, TError,{tripId: number;itemId: number;data: BodyType<ItineraryItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateItineraryItem>>, TError,{tripId: number;itemId: number;data: BodyType<ItineraryItemInput>}, TContext> => {
+
+const mutationKey = ['updateItineraryItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateItineraryItem>>, {tripId: number;itemId: number;data: BodyType<ItineraryItemInput>}> = (props) => {
+          const {tripId,itemId,data} = props ?? {};
+
+          return  updateItineraryItem(tripId,itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateItineraryItemMutationResult = NonNullable<Awaited<ReturnType<typeof updateItineraryItem>>>
+    export type UpdateItineraryItemMutationBody = BodyType<ItineraryItemInput>
+    export type UpdateItineraryItemMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update an itinerary item (its creator or a leader)
+ */
+export const useUpdateItineraryItem = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateItineraryItem>>, TError,{tripId: number;itemId: number;data: BodyType<ItineraryItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateItineraryItem>>,
+        TError,
+        {tripId: number;itemId: number;data: BodyType<ItineraryItemInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateItineraryItemMutationOptions(options));
+    }
+
+export const getRemoveItineraryItemUrl = (tripId: number,
+    itemId: number,) => {
+
+
+
+
+  return `/api/trips/${tripId}/itinerary/${itemId}`
+}
+
+/**
+ * @summary Remove an itinerary item (its creator or a leader)
+ */
+export const removeItineraryItem = async (tripId: number,
+    itemId: number, options?: Parameters<typeof customFetch>[1]): Promise<OkResponse> => {
+
+  return customFetch<OkResponse>(getRemoveItineraryItemUrl(tripId,itemId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveItineraryItemMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeItineraryItem>>, TError,{tripId: number;itemId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeItineraryItem>>, TError,{tripId: number;itemId: number}, TContext> => {
+
+const mutationKey = ['removeItineraryItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeItineraryItem>>, {tripId: number;itemId: number}> = (props) => {
+          const {tripId,itemId} = props ?? {};
+
+          return  removeItineraryItem(tripId,itemId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveItineraryItemMutationResult = NonNullable<Awaited<ReturnType<typeof removeItineraryItem>>>
+
+    export type RemoveItineraryItemMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Remove an itinerary item (its creator or a leader)
+ */
+export const useRemoveItineraryItem = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeItineraryItem>>, TError,{tripId: number;itemId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeItineraryItem>>,
+        TError,
+        {tripId: number;itemId: number},
+        TContext
+      > => {
+      return useMutation(getRemoveItineraryItemMutationOptions(options));
     }
 
 export const getSearchPlacesUrl = (params: SearchPlacesParams,) => {

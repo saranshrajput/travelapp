@@ -667,6 +667,7 @@ export default function Tracking() {
   const menu = () => {
     const opts: { label: string; destructive?: boolean; run: () => void }[] = [
       { label: 'Trip details & join code', run: () => router.push(`/trip/${tripId}`) },
+      { label: 'Itinerary & hotel stays', run: () => router.push(`/trip/${tripId}/itinerary`) },
     ];
     if (isViewerLeader && isActive) {
       opts.push({

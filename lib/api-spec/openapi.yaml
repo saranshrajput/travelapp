@@ -604,6 +604,102 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /trips/{tripId}/itinerary:
+    get:
+      operationId: listItinerary
+      tags: [trips]
+      summary: List the trip itinerary (hotel stays, activities, bookings), ordered by start time
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Itinerary items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ItineraryItem"
+    post:
+      operationId: createItineraryItem
+      tags: [trips]
+      summary: Add an itinerary item (any joined member)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItineraryItemInput"
+      responses:
+        "201":
+          description: Itinerary item created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItineraryItem"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /trips/{tripId}/itinerary/{itemId}:
+    put:
+      operationId: updateItineraryItem
+      tags: [trips]
+      summary: Update an itinerary item (its creator or a leader)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItineraryItemInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItineraryItem"
+        "404":
+          description: Itinerary item not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: removeItineraryItem
+      tags: [trips]
+      summary: Remove an itinerary item (its creator or a leader)
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          description: Itinerary item not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /geo/search:
     get:
       operationId: searchPlaces
@@ -1168,6 +1264,56 @@ components:
         response:
           type: string
           enum: [on_my_way, already_there]
+    ItineraryItemInput:
+      type: object
+      required: [kind, title, startAt]
+      properties:
+        kind:
+          type: string
+          enum: [stay, activity, transport, food, other]
+        title:
+          type: string
+        address:
+          type: string
+        startAt:
+          type: string
+        endAt:
+          type: string
+        confirmationCode:
+          type: string
+        notes:
+          type: string
+    ItineraryItem:
+      type: object
+      required: [id, tripId, createdByMemberId, createdByName, kind, title, startAt, canEdit, createdAt]
+      properties:
+        id:
+          type: number
+        tripId:
+          type: number
+        createdByMemberId:
+          type: number
+        createdByName:
+          type: string
+        kind:
+          type: string
+          enum: [stay, activity, transport, food, other]
+        title:
+          type: string
+        address:
+          type: ["string", "null"]
+        startAt:
+          type: string
+        endAt:
+          type: ["string", "null"]
+        confirmationCode:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        canEdit:
+          type: boolean
+        createdAt:
+          type: string
     SafeZoneInput:
       type: object
       required: [lat, lng, radiusM]

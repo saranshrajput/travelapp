@@ -40,6 +40,7 @@ function RootLayoutNav() {
       <Stack.Screen name="create-trip" />
       <Stack.Screen name="trip/[id]/index" />
       <Stack.Screen name="trip/[id]/tracking" />
+      <Stack.Screen name="trip/[id]/itinerary" />
       <Stack.Screen name="trip/[id]/messages" options={{ presentation: 'modal' }} />
     </Stack>
   );

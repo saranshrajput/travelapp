@@ -376,6 +376,58 @@ export interface PitstopRespondInput {
   response: PitstopRespondInputResponse;
 }
 
+export type ItineraryItemInputKind = typeof ItineraryItemInputKind[keyof typeof ItineraryItemInputKind];
+
+
+export const ItineraryItemInputKind = {
+  stay: 'stay',
+  activity: 'activity',
+  transport: 'transport',
+  food: 'food',
+  other: 'other',
+} as const;
+
+export interface ItineraryItemInput {
+  kind: ItineraryItemInputKind;
+  title: string;
+  address?: string;
+  startAt: string;
+  endAt?: string;
+  confirmationCode?: string;
+  notes?: string;
+}
+
+export type ItineraryItemKind = typeof ItineraryItemKind[keyof typeof ItineraryItemKind];
+
+
+export const ItineraryItemKind = {
+  stay: 'stay',
+  activity: 'activity',
+  transport: 'transport',
+  food: 'food',
+  other: 'other',
+} as const;
+
+export interface ItineraryItem {
+  id: number;
+  tripId: number;
+  createdByMemberId: number;
+  createdByName: string;
+  kind: ItineraryItemKind;
+  title: string;
+  /** @nullable */
+  address?: string | null;
+  startAt: string;
+  /** @nullable */
+  endAt?: string | null;
+  /** @nullable */
+  confirmationCode?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  canEdit: boolean;
+  createdAt: string;
+}
+
 export interface SafeZoneInput {
   lat: number;
   lng: number;

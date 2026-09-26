@@ -920,6 +920,113 @@ export const RemoveSafeZoneResponse = zod.object({
 
 
 /**
+ * @summary List the trip itinerary (hotel stays, activities, bookings), ordered by start time
+ */
+export const ListItineraryParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const ListItineraryResponseItem = zod.object({
+  "id": zod.number(),
+  "tripId": zod.number(),
+  "createdByMemberId": zod.number(),
+  "createdByName": zod.string(),
+  "kind": zod.enum(['stay', 'activity', 'transport', 'food', 'other']),
+  "title": zod.string(),
+  "address": zod.string().nullish(),
+  "startAt": zod.string(),
+  "endAt": zod.string().nullish(),
+  "confirmationCode": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "canEdit": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListItineraryResponse = zod.array(ListItineraryResponseItem)
+
+
+/**
+ * @summary Add an itinerary item (any joined member)
+ */
+export const CreateItineraryItemParams = zod.object({
+  "tripId": zod.coerce.number()
+})
+
+export const CreateItineraryItemBody = zod.object({
+  "kind": zod.enum(['stay', 'activity', 'transport', 'food', 'other']),
+  "title": zod.string(),
+  "address": zod.string().optional(),
+  "startAt": zod.string(),
+  "endAt": zod.string().optional(),
+  "confirmationCode": zod.string().optional(),
+  "notes": zod.string().optional()
+})
+
+export const CreateItineraryItemResponse = zod.object({
+  "id": zod.number(),
+  "tripId": zod.number(),
+  "createdByMemberId": zod.number(),
+  "createdByName": zod.string(),
+  "kind": zod.enum(['stay', 'activity', 'transport', 'food', 'other']),
+  "title": zod.string(),
+  "address": zod.string().nullish(),
+  "startAt": zod.string(),
+  "endAt": zod.string().nullish(),
+  "confirmationCode": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "canEdit": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update an itinerary item (its creator or a leader)
+ */
+export const UpdateItineraryItemParams = zod.object({
+  "tripId": zod.coerce.number(),
+  "itemId": zod.coerce.number()
+})
+
+export const UpdateItineraryItemBody = zod.object({
+  "kind": zod.enum(['stay', 'activity', 'transport', 'food', 'other']),
+  "title": zod.string(),
+  "address": zod.string().optional(),
+  "startAt": zod.string(),
+  "endAt": zod.string().optional(),
+  "confirmationCode": zod.string().optional(),
+  "notes": zod.string().optional()
+})
+
+export const UpdateItineraryItemResponse = zod.object({
+  "id": zod.number(),
+  "tripId": zod.number(),
+  "createdByMemberId": zod.number(),
+  "createdByName": zod.string(),
+  "kind": zod.enum(['stay', 'activity', 'transport', 'food', 'other']),
+  "title": zod.string(),
+  "address": zod.string().nullish(),
+  "startAt": zod.string(),
+  "endAt": zod.string().nullish(),
+  "confirmationCode": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "canEdit": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Remove an itinerary item (its creator or a leader)
+ */
+export const RemoveItineraryItemParams = zod.object({
+  "tripId": zod.coerce.number(),
+  "itemId": zod.coerce.number()
+})
+
+export const RemoveItineraryItemResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
  * @summary Address search (forward geocoding)
  */
 export const SearchPlacesQueryParams = zod.object({
